@@ -19,9 +19,15 @@ import {
   Clock,
   KeyRound,
   LockKeyhole,
+  Play,
+  Plus,
   ReceiptText,
   SearchCheck,
+  Settings,
   ShieldCheck,
+  Square,
+  Trash2,
+  UserCheck,
   Vote
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -34,8 +40,13 @@ import {
   CardTitle
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import type { Election, VoteReceipt } from "../types"
-import { verifyVoteToken, type VoteLedgerEntry } from "@/lib/elgamal-vote"
+import type { Candidate, Election, ElectionStatus, VoteReceipt } from "../types"
+import {
+  aggregateEncryptedChoices,
+  decryptAggregatedVote,
+  verifyVoteToken,
+  type VoteLedgerEntry
+} from "@/lib/elgamal-vote"
 import { DEMO_ELGAMAL_PARAMETERS } from "@/lib/elgamal"
 import {
   applyLocalVote,
@@ -52,8 +63,18 @@ type CryptoVoteAppProps = {
 export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
   const [liveElection, setLiveElection] = useState(election)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("")
+  const [voterId, setVoterId] = useState(election.authorizedVoters[0]?.id ?? "")
+  const [activeEmail, setActiveEmail] = useState(election.authorizedVoters[0]?.email ?? "")
   const [receipt, setReceipt] = useState<VoteReceipt | null>(null)
   const [voteLedger, setVoteLedger] = useState<VoteLedgerEntry[]>([])
+  const [candidateDraft, setCandidateDraft] = useState({
+    name: "",
+    party: "",
+    platform: ""
+  })
+  const [voterDraft, setVoterDraft] = useState("")
+  const [adminMessage, setAdminMessage] = useState("Admin panel hanya aktif untuk email admin.")
+  const [finalTally, setFinalTally] = useState<Record<string, number> | null>(null)
   const [verificationToken, setVerificationToken] = useState("")
   const [verificationMessage, setVerificationMessage] = useState(
     "Tempel token EGV1 dari receipt untuk mengecek status hitung."
@@ -65,24 +86,14 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
     setHasMounted(true)
   }, [])
 
-  useEffect(() => {
-    if (receipt) {
-      return
-    }
-
-    let tick = 0
-    const interval = window.setInterval(() => {
-      tick += 1
-      setLiveElection((current) => {
-        const candidate = current.candidates[tick % current.candidates.length]
-
-        return applyLocalVote(current, candidate.id)
-      })
-    }, 3200)
-
-    return () => window.clearInterval(interval)
-  }, [receipt])
-
+  const isAdmin = liveElection.admins.some(
+    (admin) => admin.email.toLowerCase() === activeEmail.trim().toLowerCase()
+  )
+  const activeVoter = liveElection.authorizedVoters.find(
+    (voter) =>
+      voter.id.toLowerCase() === voterId.trim().toLowerCase() ||
+      voter.email.toLowerCase() === activeEmail.trim().toLowerCase()
+  )
   const selectedCandidate = liveElection.candidates.find(
     (candidate) => candidate.id === selectedCandidateId
   )
@@ -111,6 +122,24 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
       return
     }
 
+    if (liveElection.status !== "open") {
+      setVerificationStatus("invalid")
+      setVerificationMessage("Pemilihan belum dibuka atau sudah selesai.")
+      return
+    }
+
+    if (!activeVoter) {
+      setVerificationStatus("invalid")
+      setVerificationMessage("ID atau email pemilih tidak ada di daftar otorisasi.")
+      return
+    }
+
+    if (activeVoter.hasVoted) {
+      setVerificationStatus("invalid")
+      setVerificationMessage("Pemilih ini sudah tercatat memberikan suara.")
+      return
+    }
+
     const nextReceipt = createReceipt(
       selectedCandidateId,
       liveElection.candidates.map((candidate) => candidate.id)
@@ -128,7 +157,14 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         encryptedChoices: nextReceipt.encryptedChoices
       }
     ])
-    setLiveElection((current) => applyLocalVote(current, selectedCandidateId))
+    setLiveElection((current) => ({
+      ...applyLocalVote(current, selectedCandidateId),
+      authorizedVoters: current.authorizedVoters.map((voter) =>
+        voter.id === activeVoter.id
+          ? { ...voter, hasVoted: true, votedAt: nextReceipt.createdAt }
+          : voter
+      )
+    }))
   }
 
   function verifyToken() {
@@ -136,6 +172,133 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
 
     setVerificationStatus(result.status)
     setVerificationMessage(result.message)
+  }
+
+  function updateElectionStatus(status: ElectionStatus) {
+    setLiveElection((current) => ({ ...current, status }))
+    setAdminMessage(
+      status === "open"
+        ? "Pemilihan dibuka. Pemilih terotorisasi bisa membuat receipt."
+        : status === "closed"
+          ? "Pemilihan selesai. Admin dapat mendekripsi hasil akhir."
+          : "Pemilihan dikembalikan ke draft."
+    )
+
+    if (status === "closed") {
+      decryptFinalTally()
+    }
+  }
+
+  function addCandidate() {
+    if (liveElection.status !== "draft") {
+      setAdminMessage("Kandidat hanya bisa diubah saat status draft.")
+      return
+    }
+
+    if (!candidateDraft.name.trim() || !candidateDraft.party.trim()) {
+      setAdminMessage("Nama dan kelompok kandidat wajib diisi.")
+      return
+    }
+
+    const nextCandidate: Candidate = {
+      id: candidateDraft.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, ""),
+      name: candidateDraft.name.trim(),
+      party: candidateDraft.party.trim(),
+      platform: candidateDraft.platform.trim() || "Platform belum diisi admin.",
+      color: `var(--chart-${(liveElection.candidates.length % 4) + 1})`,
+      votes: 0
+    }
+
+    setLiveElection((current) => ({
+      ...current,
+      candidates: [...current.candidates, nextCandidate]
+    }))
+    setCandidateDraft({ name: "", party: "", platform: "" })
+    setAdminMessage("Kandidat ditambahkan ke draft pemilihan.")
+  }
+
+  function removeCandidate(candidateId: string) {
+    if (liveElection.status !== "draft") {
+      setAdminMessage("Kandidat hanya bisa dihapus saat status draft.")
+      return
+    }
+
+    setLiveElection((current) => ({
+      ...current,
+      candidates: current.candidates.filter((candidate) => candidate.id !== candidateId)
+    }))
+  }
+
+  function addVoters() {
+    const entries = voterDraft
+      .split(/[\n,]+/)
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean)
+
+    if (entries.length === 0) {
+      setAdminMessage("Masukkan minimal satu email atau ID pemilih.")
+      return
+    }
+
+    setLiveElection((current) => {
+      const existing = new Set(
+        current.authorizedVoters.flatMap((voter) => [voter.id, voter.email.toLowerCase()])
+      )
+      const nextVoters = entries
+        .filter((entry) => !existing.has(entry))
+        .map((entry, index) => ({
+          id: entry.includes("@") ? `VTR-${current.authorizedVoters.length + index + 1}` : entry,
+          email: entry.includes("@") ? entry : `${entry}@local.voter`,
+          hasVoted: false
+        }))
+
+      return {
+        ...current,
+        totalVoters: current.authorizedVoters.length + nextVoters.length,
+        authorizedVoters: [...current.authorizedVoters, ...nextVoters]
+      }
+    })
+    setVoterDraft("")
+    setAdminMessage("Daftar pemilih terotorisasi diperbarui.")
+  }
+
+  async function syncAdminState() {
+    const response = await fetch("/api/admin/election", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-cryptovote-admin": isAdmin ? "true" : "false"
+      },
+      body: JSON.stringify(liveElection)
+    })
+    const body = await response.json()
+
+    if (!response.ok) {
+      setAdminMessage(body.title ?? "Gagal menyimpan state admin.")
+      return
+    }
+
+    setAdminMessage(`State admin disimpan ke ${body.persistence}.`)
+  }
+
+  function decryptFinalTally() {
+    const aggregates = aggregateEncryptedChoices(voteLedger)
+    const decrypted = Object.fromEntries(
+      liveElection.candidates.map((candidate) => {
+        const aggregate = aggregates.get(candidate.id)
+
+        return [
+          candidate.id,
+          aggregate ? decryptAggregatedVote(aggregate, voteLedger.length) : 0
+        ]
+      })
+    )
+
+    setFinalTally(decrypted)
   }
 
   return (
@@ -155,11 +318,35 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
             individu.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:min-w-80">
+        <div className="grid grid-cols-2 gap-3 sm:min-w-96">
           <StatusTile label="Partisipasi" value={`${turnout}%`} icon={Vote} />
-          <StatusTile label="Ditutup" value="17:00 WIB" icon={Clock} />
+          <StatusTile label="Status" value={liveElection.status.toUpperCase()} icon={Clock} />
         </div>
       </header>
+
+      <section className="grid gap-4 rounded-lg border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]">
+        <label className="grid gap-2 text-sm font-medium">
+          Email aktif
+          <input
+            className="h-11 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={activeEmail}
+            onChange={(event) => setActiveEmail(event.target.value)}
+          />
+        </label>
+        <label className="grid gap-2 text-sm font-medium">
+          ID pemilih
+          <input
+            className="h-11 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={voterId}
+            onChange={(event) => setVoterId(event.target.value)}
+          />
+        </label>
+        <div className="flex items-end">
+          <Badge variant={isAdmin ? "verified" : "outline"} className="min-h-11 px-4">
+            {isAdmin ? "Admin authorized" : "User voter"}
+          </Badge>
+        </div>
+      </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.05fr_0.82fr_1fr]">
         <Card className="order-1">
@@ -169,7 +356,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
               Surat Suara
             </CardTitle>
             <CardDescription>
-              Satu pemilih memiliki satu pilihan. Tombol kirim aktif setelah kandidat dipilih.
+              Satu pemilih terotorisasi memiliki satu pilihan saat pemilihan berstatus open.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -215,7 +402,13 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
             <Button
               className="w-full"
               size="lg"
-              disabled={!selectedCandidateId || Boolean(receipt)}
+              disabled={
+                !selectedCandidateId ||
+                Boolean(receipt) ||
+                liveElection.status !== "open" ||
+                !activeVoter ||
+                activeVoter.hasVoted
+              }
               onClick={castVote}
             >
               <LockKeyhole className="size-4" aria-hidden="true" />
@@ -440,6 +633,190 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
           </CardContent>
         </Card>
       </section>
+
+      {isAdmin ? (
+        <section className="grid gap-5 rounded-lg border bg-card p-5">
+          <div className="flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-xl font-black">
+                <Settings className="size-5 text-primary" aria-hidden="true" />
+                Admin Panel
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Kelola kandidat, daftar pemilih, status pemilihan, dan dekripsi hasil akhir.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => updateElectionStatus("open")}
+                disabled={liveElection.status === "open"}
+              >
+                <Play className="size-4" aria-hidden="true" />
+                Mulai Pemilihan
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => updateElectionStatus("closed")}
+                disabled={liveElection.status === "closed"}
+              >
+                <Square className="size-4" aria-hidden="true" />
+                Selesaikan Pemilihan
+              </Button>
+              <Button type="button" onClick={syncAdminState}>
+                <UserCheck className="size-4" aria-hidden="true" />
+                Simpan State
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Manajemen Kandidat</CardTitle>
+                <CardDescription>
+                  Tambah atau hapus kandidat saat status masih draft.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3">
+                  <input
+                    className="h-11 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="Nama kandidat"
+                    value={candidateDraft.name}
+                    onChange={(event) =>
+                      setCandidateDraft((current) => ({
+                        ...current,
+                        name: event.target.value
+                      }))
+                    }
+                  />
+                  <input
+                    className="h-11 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="Kelompok atau partai"
+                    value={candidateDraft.party}
+                    onChange={(event) =>
+                      setCandidateDraft((current) => ({
+                        ...current,
+                        party: event.target.value
+                      }))
+                    }
+                  />
+                  <textarea
+                    className="min-h-20 rounded-md border bg-background p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="Platform kandidat"
+                    value={candidateDraft.platform}
+                    onChange={(event) =>
+                      setCandidateDraft((current) => ({
+                        ...current,
+                        platform: event.target.value
+                      }))
+                    }
+                  />
+                  <Button type="button" variant="secondary" onClick={addCandidate}>
+                    <Plus className="size-4" aria-hidden="true" />
+                    Tambah Kandidat
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {liveElection.candidates.map((candidate) => (
+                    <div
+                      key={candidate.id}
+                      className="flex items-start justify-between gap-3 rounded-md border bg-background p-3"
+                    >
+                      <div>
+                        <p className="font-semibold">{candidate.name}</p>
+                        <p className="text-sm text-muted-foreground">{candidate.party}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCandidate(candidate.id)}
+                        disabled={liveElection.status !== "draft"}
+                        aria-label={`Hapus ${candidate.name}`}
+                      >
+                        <Trash2 className="size-4" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Otorisasi Pemilih</CardTitle>
+                <CardDescription>
+                  Masukkan email atau ID unik. Admin hanya melihat siapa yang sudah memilih, bukan pilihannya.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <textarea
+                  className="min-h-24 w-full rounded-md border bg-background p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="email1@kampus.test, email2@kampus.test"
+                  value={voterDraft}
+                  onChange={(event) => setVoterDraft(event.target.value)}
+                />
+                <Button type="button" variant="secondary" className="w-full" onClick={addVoters}>
+                  <UserCheck className="size-4" aria-hidden="true" />
+                  Tambah Pemilih
+                </Button>
+                <div className="max-h-72 space-y-2 overflow-auto pr-1">
+                  {liveElection.authorizedVoters.map((voter) => (
+                    <div
+                      key={voter.id}
+                      className="flex items-center justify-between gap-3 rounded-md border bg-background p-3"
+                    >
+                      <div>
+                        <p className="font-mono text-sm font-semibold">{voter.id}</p>
+                        <p className="text-sm text-muted-foreground">{voter.email}</p>
+                      </div>
+                      <Badge variant={voter.hasVoted ? "verified" : "outline"}>
+                        {voter.hasVoted ? "Sudah memilih" : "Belum"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Dekripsi Hasil Akhir</CardTitle>
+              <CardDescription>
+                Fungsi dekripsi hanya ditampilkan untuk admin dan dipakai setelah pemilihan selesai.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                type="button"
+                onClick={decryptFinalTally}
+                disabled={liveElection.status !== "closed" || voteLedger.length === 0}
+              >
+                <KeyRound className="size-4" aria-hidden="true" />
+                Dekripsi Tally Agregat
+              </Button>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {liveElection.candidates.map((candidate) => (
+                  <ProofTile
+                    key={candidate.id}
+                    label={candidate.name}
+                    value={`${finalTally?.[candidate.id] ?? 0} suara`}
+                  />
+                ))}
+              </div>
+              <p className="rounded-md border bg-background p-3 text-sm text-muted-foreground">
+                {adminMessage}
+              </p>
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
     </main>
   )
 }

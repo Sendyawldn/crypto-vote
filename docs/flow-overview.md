@@ -3,10 +3,20 @@
 ## Main Voter Flow
 
 1. The voter opens the election workspace.
-2. The app shows election status, turnout, candidate options, and encryption readiness.
-3. The voter selects one candidate.
-4. The app encrypts a candidate vector with El Gamal and displays an encrypted receipt token.
-5. The result panel updates the live tally view.
+2. The voter enters an authorized ID or email from the admin voter list.
+3. The app shows election status, turnout, candidate options, and encryption readiness.
+4. The voter selects one candidate while the election status is `open`.
+5. The app encrypts a candidate vector with El Gamal and displays an encrypted receipt token.
+6. The voter record is marked as voted without revealing the selected candidate.
+
+## Admin Flow
+
+1. The admin signs in through the demo email field with an admin email.
+2. The admin manages election title, candidates, and authorized voters while the election is in draft.
+3. The admin opens the election with `Mulai Pemilihan`.
+4. The admin can see which voter IDs have voted, but not their candidate choices.
+5. The admin closes the election with `Selesaikan Pemilihan`.
+6. The admin decrypts the aggregate tally after the election is closed.
 
 ## Result Flow
 

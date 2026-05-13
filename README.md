@@ -68,6 +68,14 @@ The current slice does not require secrets. Future production work must add envi
 
 The demo keeps a fixed private exponent so presentation runs are reproducible, while each vote encryption still uses a fresh random nonce. Production keys must be generated and guarded through a formal key ceremony, not source code.
 
+Optional MongoDB persistence:
+
+```bash
+MONGODB_URI="mongodb://localhost:27017" MONGODB_DB="cryptovote"
+```
+
+When `MONGODB_URI` is absent, the admin API uses in-memory state for local demo use.
+
 ## Documentation
 
 - [Project Brief](docs/project-brief.md)

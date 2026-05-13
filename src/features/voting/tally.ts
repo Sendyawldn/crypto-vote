@@ -23,6 +23,8 @@ export function getElectionResults(election: Election) {
     title: election.title,
     totalVoters: election.totalVoters,
     ballotsCast: election.ballotsCast,
+    status: election.status,
+    authorizedVoters: election.authorizedVoters.length,
     turnoutPercentage: getTurnoutPercentage(election.ballotsCast, election.totalVoters),
     verificationStatus: "demo-elgamal",
     candidates: election.candidates.map((candidate) => ({

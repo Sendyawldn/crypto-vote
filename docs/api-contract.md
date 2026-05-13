@@ -2,7 +2,7 @@
 
 ## Overview
 
-CryptoVote exposes a small API surface for health checks and public election results. All responses are JSON. The current implementation uses fixture data and does not accept ballot mutations over HTTP.
+CryptoVote exposes a small API surface for health checks, public election results, and admin election configuration. All responses are JSON. Admin mutations require the demo `x-cryptovote-admin: true` header until real authentication is added.
 
 ## `GET /api/health`
 
@@ -61,6 +61,55 @@ Returns public result data for one election.
 
 Ballot submission is not exposed as an API route in this slice. A future ballot endpoint must require authentication, request validation, duplicate-submit protection, and a server-side idempotency key.
 
+## `GET /api/admin/election`
+
+Returns the current admin election state and the active persistence adapter.
+
+### Response `200`
+
+```json
+{
+  "persistence": "mongodb",
+  "election": {
+    "id": "campus-2026",
+    "status": "draft",
+    "authorizedVoters": [
+      {
+        "id": "VTR-001",
+        "email": "andi@kampus.test",
+        "hasVoted": false
+      }
+    ],
+    "admins": [
+      {
+        "id": "ADM-001",
+        "email": "admin@kampus.test",
+        "role": "admin"
+      }
+    ]
+  }
+}
+```
+
+## `PUT /api/admin/election`
+
+Saves election title, candidate list, authorized voter list, admin list, and election status. Uses MongoDB when `MONGODB_URI` is configured and memory fallback otherwise.
+
+### Headers
+
+- `x-cryptovote-admin: true`
+
+### Response `403`
+
+```json
+{
+  "type": "https://cryptovote.local/problems/forbidden",
+  "title": "Admin authorization required",
+  "status": 403,
+  "code": "ADMIN_REQUIRED"
+}
+```
+
 ## Next Validation Action
 
-Add an OpenAPI 3.1 document when ballot mutation routes are introduced.
+Replace the demo admin header with real authenticated sessions and publish an OpenAPI 3.1 document when ballot mutation routes are introduced.

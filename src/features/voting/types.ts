@@ -9,13 +9,32 @@ export type Candidate = {
   votes: number
 }
 
+export type ElectionStatus = "draft" | "open" | "closed"
+
+export type Voter = {
+  id: string
+  email: string
+  hasVoted: boolean
+  votedAt?: string
+}
+
+export type AdminUser = {
+  id: string
+  email: string
+  role: "admin"
+}
+
 export type Election = {
   id: string
   title: string
+  description: string
   region: string
   closesAt: string
+  status: ElectionStatus
   totalVoters: number
   ballotsCast: number
+  authorizedVoters: Voter[]
+  admins: AdminUser[]
   candidates: Candidate[]
 }
 

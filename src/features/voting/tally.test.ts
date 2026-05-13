@@ -32,8 +32,8 @@ describe("voting tally", () => {
     const updated = applyLocalVote(election, "naya")
 
     expect(updated.ballotsCast).toBe(election.ballotsCast + 1)
-    expect(updated.candidates.find((candidate) => candidate.id === "naya")?.votes).toBe(343)
-    expect(election.candidates.find((candidate) => candidate.id === "naya")?.votes).toBe(342)
+    expect(updated.candidates.find((candidate) => candidate.id === "naya")?.votes).toBe(1)
+    expect(election.candidates.find((candidate) => candidate.id === "naya")?.votes).toBe(0)
   })
 
   it("creates a deterministic receipt prefix", () => {

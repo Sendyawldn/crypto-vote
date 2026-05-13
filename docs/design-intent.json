@@ -1,0 +1,214 @@
+{
+  "mode": "dynamic",
+  "status": "implemented-contract",
+  "project": {
+    "name": "evoting",
+    "productName": "CryptoVote",
+    "context": "Web e-voting application using El Gamal homomorphic encryption as the security model.",
+    "domain": "Fullstack product"
+  },
+  "designPhilosophy": "Controlled, inspectable, and voter-first. The interface should make encrypted voting understandable without overclaiming production security.",
+  "visualDirection": {
+    "anchor": "tamper-evident ballot envelope under a counting-room lamp",
+    "distinctiveMoves": [
+      "sealed receipt panel for encrypted ballot state",
+      "copper cryptographic accents separated from green verification state",
+      "desktop three-surface count room layout"
+    ],
+    "copiedReferenceAllowed": false
+  },
+  "externalResearchIntake": {
+    "usedSignals": [
+      "official Next.js App Router docs",
+      "official Tailwind CSS v4 setup guidance",
+      "official shadcn/ui Tailwind v4 guidance",
+      "official Recharts guide"
+    ],
+    "fetchedAt": "2026-05-13"
+  },
+  "designFlexibilityPolicy": {
+    "mode": "locked-outcomes-flexible-expression",
+    "lockedOutcomeTypes": [
+      "voter-first workflow",
+      "accessibility floor",
+      "production content honesty",
+      "cryptographic state clarity"
+    ],
+    "flexibleExpressionAxes": [
+      "exact-palette-primitives",
+      "font-family-selection",
+      "component-kit-theme-mapping",
+      "signature-move-implementation"
+    ]
+  },
+  "conceptualAnchor": {
+    "name": "Counting-room ballot seal",
+    "anchorReference": "tamper-evident ballot envelope under a counting-room lamp",
+    "agentResearchMode": "agent-selected-from-active-brief",
+    "sourceDomain": "civic counting room and physical ballot custody",
+    "specificReferencePoint": "sealed ballot envelope, ledger ink, lamp-lit count table",
+    "rationale": "Voting needs trust, custody, and count clarity more than generic dashboard energy.",
+    "signatureMotion": "selection compresses into sealed receipt; tally bars rebalance after submission",
+    "typographicDecision": "display for election identity, plain text for voter instruction, tabular numerals for counts",
+    "visualRiskBudget": "distinctive but calm",
+    "motionRiskBudget": "short state transitions with reduced-motion fallback",
+    "cohesionChecks": [
+      "no-dashboard-mental-model",
+      "motion-derived-from-anchor",
+      "cryptographic-state-visible"
+    ]
+  },
+  "derivedTokenLogic": {
+    "anchorReference": "tamper-evident ballot envelope under a counting-room lamp",
+    "colorDerivationSource": "paper, ink, copper seal, verification mark, and caution states",
+    "spacingDerivationSource": "ballot surfaces use compact inspection spacing with clear action zones",
+    "typographyDerivationSource": "ledger counts use tabular numerals; instructions use plain readable text",
+    "motionDerivationSource": "seal and tally transitions are short, deliberate, and non-decorative",
+    "validationRule": "Every token must map to custody, voting, verification, or result reading."
+  },
+  "motionPaletteDecision": {
+    "productCategorySignal": "secure civic workflow",
+    "paletteDecision": "off-white ballot, ink, copper cryptographic accent, green verification, red blocking risk",
+    "motionDecision": "medium-low density with explicit seal, submit, and tally update states",
+    "spatialDecision": "2D responsive app; no 3D because the workflow needs clarity and fast form completion"
+  },
+  "aiSafeUiAudit": {
+    "status": "completed",
+    "requiredProductSpecificSignals": [
+      "encrypted receipt treatment",
+      "homomorphic tally status",
+      "ballot-first responsive priority"
+    ],
+    "forbiddenDrift": [
+      "generic dashboard card grid",
+      "decorative grid wallpaper",
+      "fake blockchain glow language"
+    ]
+  },
+  "productionContentPolicy": {
+    "noPlaceholderCopy": true,
+    "securityClaimsMustBeQualified": true
+  },
+  "libraryResearchStatus": "verified-official-docs",
+  "libraryDecisions": [
+    {
+      "name": "Next.js",
+      "version": "15.5.18",
+      "purpose": "App Router, route handlers, single deployable",
+      "source": "https://nextjs.org/docs/app",
+      "fetchedAt": "2026-05-13"
+    },
+    {
+      "name": "Tailwind CSS",
+      "version": "4.3.0",
+      "purpose": "CSS-first utility styling",
+      "source": "https://tailwindcss.com/blog/tailwindcss-v4",
+      "fetchedAt": "2026-05-13"
+    },
+    {
+      "name": "shadcn/ui",
+      "version": "local component pattern",
+      "purpose": "Accessible local UI components",
+      "source": "https://v3.shadcn.com/docs/installation/next",
+      "fetchedAt": "2026-05-13"
+    },
+    {
+      "name": "Recharts",
+      "version": "3.8.1",
+      "purpose": "Live results visualization",
+      "source": "https://recharts.github.io/en-US/guide/",
+      "fetchedAt": "2026-05-13"
+    }
+  ],
+  "mathSystems": {
+    "charting": "percent-of-ballots and turnout ratios",
+    "crypto": "El Gamal modeled state only in this slice"
+  },
+  "tokenSystem": {
+    "semanticRoles": [
+      "background",
+      "foreground",
+      "primary",
+      "verified",
+      "cryptographic",
+      "warning",
+      "muted",
+      "chart"
+    ]
+  },
+  "colorTruth": {
+    "contrastFloor": "WCAG 2.2 AA",
+    "statusNotColorOnly": true
+  },
+  "crossViewportAdaptation": {
+    "mobile": "vote-first stack",
+    "tablet": "vote and proof pair",
+    "desktop": "voting, receipt, and results visible together"
+  },
+  "motionSystem": {
+    "durationMs": [160, 220, 280],
+    "reducedMotion": "remove transform motion and keep text/status feedback"
+  },
+  "componentMorphology": {
+    "radius": "8px or less",
+    "surfaces": "ballot sheets and sealed receipt panels",
+    "buttons": "direct commands with accessible states"
+  },
+  "accessibilityPolicy": {
+    "wcag": "2.2 AA",
+    "keyboard": true,
+    "focusVisible": true,
+    "dynamicStatusText": true
+  },
+  "designExecutionPolicy": {
+    "noGenericDashboard": true,
+    "noDecorativeWallpaper": true,
+    "docsBeforeUiCode": true
+  },
+  "designExecutionHandoff": {
+    "primarySurface": "voter workspace",
+    "secondarySurface": "encrypted receipt",
+    "tertiarySurface": "live result chart"
+  },
+  "reviewRubric": [
+    "Does the UI make ballot custody clear?",
+    "Can a voter complete the main action on mobile?",
+    "Are proof and security claims honest?",
+    "Does the chart remain readable across widths?"
+  ],
+  "contextHygiene": {
+    "validSources": [
+      "active user brief",
+      "current repo docs",
+      "official library docs"
+    ],
+    "invalidSources": [
+      "prior unrelated design memory",
+      "generic SaaS shell"
+    ]
+  },
+  "forbiddenPatterns": [
+    "generic dashboard chrome",
+    "decorative grid wallpaper",
+    "cyber terminal palette",
+    "placeholder UI copy"
+  ],
+  "requiredDesignSections": [
+    "intent",
+    "audience",
+    "visual direction",
+    "tokens",
+    "responsive",
+    "motion",
+    "accessibility"
+  ],
+  "implementation": {
+    "stack": "Next.js 15, Tailwind CSS v4, local shadcn/ui components, Recharts",
+    "state": "client state for first slice"
+  },
+  "repoEvidence": {
+    "freshProject": true,
+    "existingUi": false
+  }
+}
+

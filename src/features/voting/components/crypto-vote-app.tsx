@@ -36,6 +36,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import type { Election, VoteReceipt } from "../types"
 import { verifyVoteToken, type VoteLedgerEntry } from "@/lib/elgamal-vote"
+import { DEMO_ELGAMAL_PARAMETERS } from "@/lib/elgamal"
 import {
   applyLocalVote,
   createReceipt,
@@ -431,7 +432,10 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
             <ProofTile label="Ledger lokal" value={`${voteLedger.length}`} />
-            <ProofTile label="Operasi" value="C1 x C2 mod p" />
+            <ProofTile label="Modulus p" value={DEMO_ELGAMAL_PARAMETERS.p.toString()} />
+            <ProofTile label="Generator g" value={DEMO_ELGAMAL_PARAMETERS.g.toString()} />
+            <ProofTile label="Operasi tally" value="C1 x C2 mod p" />
+            <ProofTile label="Private key" value="Key ceremony produksi" />
             <ProofTile label="Reveal pilihan" value="Tidak" />
           </CardContent>
         </Card>

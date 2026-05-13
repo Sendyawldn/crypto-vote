@@ -22,6 +22,10 @@
 3. The verifier checks that the token hash exists in the local tally ledger without revealing the selected candidate.
 4. A production backend must move ledger storage, key custody, and public proofs to trusted server infrastructure.
 
+## Key Ceremony Note
+
+The demo uses fixed key material only for repeatable presentation. Vote encryption still uses random nonce values. Production must replace this with a formal key ceremony and protected private-key custody.
+
 ## Failure And Empty States
 
 - No selected candidate: the cast button stays disabled.

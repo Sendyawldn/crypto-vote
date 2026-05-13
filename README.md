@@ -66,6 +66,8 @@ Both commands expose the app on `http://localhost:3000`.
 
 The current slice does not require secrets. Future production work must add environment-backed values for election keys, session signing, database credentials, and audit storage.
 
+The demo keeps a fixed private exponent so presentation runs are reproducible, while each vote encryption still uses a fresh random nonce. Production keys must be generated and guarded through a formal key ceremony, not source code.
+
 ## Documentation
 
 - [Project Brief](docs/project-brief.md)

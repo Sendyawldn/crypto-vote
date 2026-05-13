@@ -17,6 +17,8 @@ The product context names El Gamal homomorphic encryption as the core security i
 
 This slice does not provide production voter identity proofing, certified key ceremonies, permanent ballot storage, or audited cryptographic deployment. The El Gamal math is implemented for demonstration and education, while production use still needs reviewed parameters, key custody, protocols, and server-side trust boundaries.
 
+The demo uses a fixed private exponent for repeatable local presentation. Vote encryption still uses random nonces. A production election must generate private keys through a formal key ceremony, split or guard the private key, and keep it out of source code.
+
 ## Runtime Evidence
 
 - Next.js App Router uses file-system routing and React Server Components. Source: https://nextjs.org/docs/app, fetched 2026-05-13.

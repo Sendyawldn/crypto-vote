@@ -32,6 +32,25 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+User voting page:
+
+```text
+/
+```
+
+Admin page:
+
+```text
+/admin
+```
+
+Demo admin login:
+
+```text
+Email: admin@kampus.test
+Password: admin123
+```
+
 ## Validation
 
 ```bash
@@ -65,6 +84,8 @@ Both commands expose the app on `http://localhost:3000`.
 ## Configuration
 
 The current slice does not require secrets. Future production work must add environment-backed values for election keys, session signing, database credentials, and audit storage.
+
+The public voting page only asks for a voter name. It does not require a user account or email. The admin panel is separated under `/admin` and requires demo login before exposing full election controls.
 
 The demo keeps a fixed private exponent so presentation runs are reproducible, while each vote encryption still uses a fresh random nonce. Production keys must be generated and guarded through a formal key ceremony, not source code.
 

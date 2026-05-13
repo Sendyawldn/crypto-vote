@@ -2,7 +2,7 @@
 
 ## Overview
 
-CryptoVote exposes a small API surface for health checks, public election results, and admin election configuration. All responses are JSON. Admin mutations require the demo `x-cryptovote-admin: true` header until real authentication is added.
+CryptoVote exposes a small API surface for health checks, public election results, and admin election configuration. All responses are JSON. The `/admin` page uses a demo client-side login for presentation, while admin API mutations require the demo `x-cryptovote-admin: true` header until real authentication is added.
 
 ## `GET /api/health`
 
@@ -98,6 +98,8 @@ Saves election title, candidate list, authorized voter list, admin list, and ele
 ### Headers
 
 - `x-cryptovote-admin: true`
+
+The current UI route for these controls is `/admin`. Demo credential: `admin@kampus.test` / `admin123`.
 
 ### Response `403`
 

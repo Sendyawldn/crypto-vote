@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --background: oklch(0.982 0.012 92);
-  --foreground: oklch(0.18 0.025 78);
-  --card: oklch(0.997 0.006 95);
+  --background: oklch(0.965 0.018 91);
+  --foreground: oklch(0.17 0.031 72);
+  --card: oklch(0.992 0.01 96);
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.39 0.112 48);
+  --primary: oklch(0.37 0.12 48);
   --primary-foreground: oklch(0.99 0.006 95);
-  --secondary: oklch(0.92 0.029 88);
+  --secondary: oklch(0.91 0.034 86);
   --secondary-foreground: oklch(0.28 0.047 71);
-  --muted: oklch(0.91 0.018 91);
+  --muted: oklch(0.9 0.02 91);
   --muted-foreground: oklch(0.46 0.027 78);
-  --accent: oklch(0.82 0.105 76);
+  --accent: oklch(0.78 0.118 71);
   --accent-foreground: oklch(0.2 0.032 70);
   --destructive: oklch(0.54 0.18 29);
   --destructive-foreground: oklch(0.99 0.006 95);
-  --border: oklch(0.81 0.025 88);
+  --border: oklch(0.78 0.03 86);
   --input: oklch(0.85 0.022 88);
   --ring: oklch(0.48 0.119 147);
   --verified: oklch(0.47 0.12 151);
@@ -75,8 +75,9 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 18% 12%, color-mix(in oklch, var(--accent) 22%, transparent), transparent 26rem),
-    linear-gradient(135deg, var(--background), oklch(0.95 0.017 102));
+    radial-gradient(circle at 16% 4%, color-mix(in oklch, var(--accent) 26%, transparent), transparent 23rem),
+    radial-gradient(circle at 88% 8%, color-mix(in oklch, var(--verified) 13%, transparent), transparent 22rem),
+    linear-gradient(135deg, oklch(0.985 0.009 96), var(--background) 42%, oklch(0.93 0.019 86));
   color: var(--foreground);
   font-feature-settings: "tnum";
 }
@@ -92,6 +93,23 @@ input {
   color: var(--foreground);
 }
 
+.counting-table {
+  background:
+    linear-gradient(90deg, color-mix(in oklch, var(--primary) 8%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in oklch, white 72%, var(--card)), var(--card));
+  box-shadow: 0 22px 80px color-mix(in oklch, var(--foreground) 11%, transparent);
+}
+
+.seal-panel {
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--crypto) 13%, var(--card)), var(--card) 58%),
+    var(--card);
+}
+
+.custody-rail {
+  background: color-mix(in oklch, var(--foreground) 7%, var(--card));
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -102,4 +120,3 @@ input {
     animation-iteration-count: 1 !important;
   }
 }
-

@@ -302,33 +302,42 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
-          <Badge variant="secondary" className="mb-3 gap-2">
+    <main className="mx-auto flex min-h-screen w-full max-w-[92rem] flex-col gap-5 px-4 py-4 sm:px-6 lg:px-8">
+      <header className="counting-table rounded-lg border p-5 sm:p-7">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-4xl">
+            <Badge variant="secondary" className="mb-4 gap-2 border-primary/20 bg-primary/10 text-foreground">
             <ShieldCheck className="size-3.5" aria-hidden="true" />
-            El Gamal homomorphic tally
-          </Badge>
-          <h1 className="text-3xl font-black tracking-normal text-foreground sm:text-5xl">
-            CryptoVote
-          </h1>
-          <p className="mt-3 text-base leading-7 text-muted-foreground sm:text-lg">
-            {liveElection.title} untuk {liveElection.region}. Pilih kandidat,
-            kunci suara, lalu pantau agregasi terenkripsi tanpa membuka pilihan
-            individu.
-          </p>
+              El Gamal homomorphic tally
+            </Badge>
+            <h1 className="max-w-3xl text-4xl font-black tracking-normal text-foreground sm:text-6xl">
+              CryptoVote
+            </h1>
+            <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
+              {liveElection.title} untuk {liveElection.region}. Pilih kandidat,
+              kunci suara, lalu pantau agregasi terenkripsi tanpa membuka pilihan
+              individu.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:min-w-[26rem] sm:grid-cols-2">
+            <StatusTile label="Partisipasi" value={`${turnout}%`} icon={Vote} />
+            <StatusTile label="Status" value={liveElection.status.toUpperCase()} icon={Clock} />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:min-w-96">
-          <StatusTile label="Partisipasi" value={`${turnout}%`} icon={Vote} />
-          <StatusTile label="Status" value={liveElection.status.toUpperCase()} icon={Clock} />
+
+        <div className="mt-6 grid gap-3 border-t pt-5 md:grid-cols-4">
+          <CustodyStep label="1. Otorisasi" value={activeVoter ? "Pemilih valid" : "Cek daftar"} />
+          <CustodyStep label="2. Enkripsi" value={receipt ? "Receipt tersegel" : "Siap El Gamal"} />
+          <CustodyStep label="3. Ledger" value={`${voteLedger.length} token`} />
+          <CustodyStep label="4. Tally" value={liveElection.status === "closed" ? "Final" : "Terkunci"} />
         </div>
       </header>
 
-      <section className="grid gap-4 rounded-lg border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]">
+      <section className="custody-rail grid gap-4 rounded-lg border p-4 shadow-sm sm:grid-cols-[1fr_1fr_auto]">
         <label className="grid gap-2 text-sm font-medium">
           Email aktif
           <input
-            className="h-11 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 rounded-md border bg-card px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             value={activeEmail}
             onChange={(event) => setActiveEmail(event.target.value)}
           />
@@ -336,7 +345,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         <label className="grid gap-2 text-sm font-medium">
           ID pemilih
           <input
-            className="h-11 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 rounded-md border bg-card px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             value={voterId}
             onChange={(event) => setVoterId(event.target.value)}
           />
@@ -348,8 +357,8 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[1.05fr_0.82fr_1fr]">
-        <Card className="order-1">
+      <section className="grid gap-5 lg:grid-cols-[1.05fr_0.88fr_1.08fr]">
+        <Card className="order-1 overflow-hidden border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Vote className="size-5 text-primary" aria-hidden="true" />
@@ -368,8 +377,8 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
                   key={candidate.id}
                   type="button"
                   className={cn(
-                    "w-full rounded-lg border bg-background p-4 text-left transition hover:-translate-y-0.5 hover:border-primary hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    selected && "border-primary bg-secondary shadow-sm",
+                    "w-full rounded-lg border bg-background p-4 text-left transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    selected && "border-primary bg-secondary shadow-md ring-1 ring-primary/20",
                     receipt && !selected && "opacity-60"
                   )}
                   onClick={() => !receipt && setSelectedCandidateId(candidate.id)}
@@ -417,7 +426,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
           </CardContent>
         </Card>
 
-        <Card className="order-2 lg:order-2">
+        <Card className="seal-panel order-2 border-crypto/30 lg:order-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ReceiptText className="size-5 text-crypto" aria-hidden="true" />
@@ -428,7 +437,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border border-dashed bg-secondary/60 p-4">
+            <div className="rounded-lg border border-dashed border-crypto/50 bg-secondary/60 p-4">
               <div className="flex items-center justify-between gap-3">
                 <Badge variant={receipt ? "verified" : "outline"}>
                   {receipt ? "Tersegel" : "Menunggu pilihan"}
@@ -471,7 +480,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
           </CardContent>
         </Card>
 
-        <Card className="order-3">
+        <Card className="order-3 overflow-hidden">
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -558,7 +567,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card>
+        <Card className="border-verified/25">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <SearchCheck className="size-5 text-verified" aria-hidden="true" />
@@ -613,7 +622,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="seal-panel border-crypto/25">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <KeyRound className="size-5 text-crypto" aria-hidden="true" />
@@ -635,7 +644,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
       </section>
 
       {isAdmin ? (
-        <section className="grid gap-5 rounded-lg border bg-card p-5">
+        <section className="grid gap-5 rounded-lg border border-primary/20 bg-card p-5 shadow-sm">
           <div className="flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="flex items-center gap-2 text-xl font-black">
@@ -839,6 +848,17 @@ function StatusTile({
         <Icon className="size-4 text-primary" aria-hidden="true" />
       </div>
       <p className="mt-2 font-mono text-2xl font-black">{value}</p>
+    </div>
+  )
+}
+
+function CustodyStep({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-card/75 p-3">
+      <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 font-mono text-sm font-black text-foreground">{value}</p>
     </div>
   )
 }

@@ -35,6 +35,7 @@ export type VoteLedgerEntry = {
   token: string
   createdAt: string
   candidateId: string
+  voterName?: string
   encryptedChoices: EncryptedVoteChoice[]
 }
 
@@ -232,4 +233,3 @@ function decodeJson(value: string) {
   const padded = value.padEnd(value.length + ((4 - (value.length % 4)) % 4), "=")
   return JSON.parse(atob(padded.replaceAll("-", "+").replaceAll("_", "/")))
 }
-

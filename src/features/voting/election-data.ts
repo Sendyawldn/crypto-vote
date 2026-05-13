@@ -6,7 +6,7 @@ export const election: Election = {
   description: "Pemilihan senat berbasis El Gamal untuk demonstrasi e-voting terverifikasi.",
   region: "Universitas Merdeka",
   closesAt: "2026-05-13T17:00:00+07:00",
-  status: "draft",
+  status: "open",
   totalVoters: 4,
   ballotsCast: 0,
   authorizedVoters: [

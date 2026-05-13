@@ -5,7 +5,7 @@
 1. The voter opens the election workspace.
 2. The app shows election status, turnout, candidate options, and encryption readiness.
 3. The voter selects one candidate.
-4. The app records a ballot intent and displays an encrypted ballot receipt model.
+4. The app encrypts a candidate vector with El Gamal and displays an encrypted receipt token.
 5. The result panel updates the live tally view.
 
 ## Result Flow
@@ -17,9 +17,10 @@
 
 ## Verification Flow
 
-1. The interface shows a proof status for the homomorphic tally.
-2. The current slice marks the proof as a modeled state.
-3. A production backend must replace this with cryptographic proofs generated from encrypted ballots.
+1. The interface shows a receipt token created from El Gamal ciphertexts.
+2. The voter can paste the token into the verification panel.
+3. The verifier checks that the token hash exists in the local tally ledger without revealing the selected candidate.
+4. A production backend must move ledger storage, key custody, and public proofs to trusted server infrastructure.
 
 ## Failure And Empty States
 
@@ -30,4 +31,3 @@
 ## Next Validation Action
 
 Connect the result panel to the documented API route, then decide whether the next live behavior should be polling, server-sent events, or WebSockets.
-

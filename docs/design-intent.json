@@ -122,7 +122,7 @@
   ],
   "mathSystems": {
     "charting": "percent-of-ballots and turnout ratios",
-    "crypto": "El Gamal modeled state only in this slice"
+    "crypto": "El Gamal BigInt demo encryption and homomorphic multiplication"
   },
   "tokenSystem": {
     "semanticRoles": [
@@ -211,4 +211,3 @@
     "existingUi": false
   }
 }
-

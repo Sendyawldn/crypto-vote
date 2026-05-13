@@ -20,6 +20,7 @@ import {
   KeyRound,
   LockKeyhole,
   ReceiptText,
+  SearchCheck,
   ShieldCheck,
   Vote
 } from "lucide-react"
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import type { Election, VoteReceipt } from "../types"
+import { verifyVoteToken, type VoteLedgerEntry } from "@/lib/elgamal-vote"
 import {
   applyLocalVote,
   createReceipt,
@@ -50,6 +52,12 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
   const [liveElection, setLiveElection] = useState(election)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("")
   const [receipt, setReceipt] = useState<VoteReceipt | null>(null)
+  const [voteLedger, setVoteLedger] = useState<VoteLedgerEntry[]>([])
+  const [verificationToken, setVerificationToken] = useState("")
+  const [verificationMessage, setVerificationMessage] = useState(
+    "Tempel token EGV1 dari receipt untuk mengecek status hitung."
+  )
+  const [verificationStatus, setVerificationStatus] = useState<"idle" | "verified" | "invalid">("idle")
   const [hasMounted, setHasMounted] = useState(false)
 
   useEffect(() => {
@@ -102,8 +110,31 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
       return
     }
 
-    setReceipt(createReceipt(selectedCandidateId))
+    const nextReceipt = createReceipt(
+      selectedCandidateId,
+      liveElection.candidates.map((candidate) => candidate.id)
+    )
+
+    setReceipt(nextReceipt)
+    setVerificationToken(nextReceipt.verificationToken)
+    setVoteLedger((current) => [
+      ...current,
+      {
+        receiptHash: nextReceipt.receiptHash,
+        token: nextReceipt.verificationToken,
+        createdAt: nextReceipt.createdAt,
+        candidateId: selectedCandidateId,
+        encryptedChoices: nextReceipt.encryptedChoices
+      }
+    ])
     setLiveElection((current) => applyLocalVote(current, selectedCandidateId))
+  }
+
+  function verifyToken() {
+    const result = verifyVoteToken(verificationToken.trim(), voteLedger)
+
+    setVerificationStatus(result.status)
+    setVerificationMessage(result.message)
   }
 
   return (
@@ -216,6 +247,9 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
                     <p className="break-all text-base font-bold text-primary">
                       {receipt.encryptedBallot}
                     </p>
+                    <p className="break-all text-xs text-muted-foreground">
+                      Hash: {receipt.receiptHash}
+                    </p>
                     <p className="text-muted-foreground">{receipt.proofLabel}</p>
                     <p className="text-xs text-muted-foreground">
                       Dibuat {new Date(receipt.createdAt).toLocaleTimeString("id-ID")}
@@ -236,8 +270,8 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
               </div>
               <Progress value={receipt ? 100 : 64} aria-label="Kesiapan verifikasi" />
               <p className="text-sm leading-6 text-muted-foreground">
-                Status ini memodelkan jalur bukti. Implementasi produksi harus mengganti bagian ini
-                dengan proof kriptografi dari backend tepercaya.
+                Token receipt memakai ciphertext El Gamal untuk setiap kandidat.
+                Token tidak menyimpan nama kandidat yang dipilih dalam plaintext.
               </p>
             </div>
           </CardContent>
@@ -328,6 +362,80 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
           </CardContent>
         </Card>
       </section>
+
+      <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <SearchCheck className="size-5 text-verified" aria-hidden="true" />
+              Verifikasi Token
+            </CardTitle>
+            <CardDescription>
+              Tempel token receipt untuk membuktikan ciphertext sudah masuk ledger tanpa membuka pilihan.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <label className="grid gap-2 text-sm font-medium">
+              Token EGV1
+              <textarea
+                className="min-h-28 resize-y rounded-md border bg-background p-3 font-mono text-xs leading-5 outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                value={verificationToken}
+                onChange={(event) => {
+                  setVerificationToken(event.target.value)
+                  setVerificationStatus("idle")
+                }}
+                placeholder="EGV1..."
+              />
+            </label>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={verifyToken}
+              disabled={!verificationToken.trim()}
+            >
+              <SearchCheck className="size-4" aria-hidden="true" />
+              Verifikasi Tanpa Reveal Pilihan
+            </Button>
+            <div
+              className={cn(
+                "rounded-md border p-3 text-sm leading-6",
+                verificationStatus === "verified" &&
+                  "border-verified bg-verified/10 text-foreground",
+                verificationStatus === "invalid" &&
+                  "border-destructive bg-destructive/10 text-foreground"
+              )}
+              aria-live="polite"
+            >
+              <span className="font-semibold">
+                {verificationStatus === "verified"
+                  ? "Terverifikasi"
+                  : verificationStatus === "invalid"
+                    ? "Tidak Valid"
+                    : "Menunggu Token"}
+              </span>
+              <p className="mt-1 text-muted-foreground">{verificationMessage}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <KeyRound className="size-5 text-crypto" aria-hidden="true" />
+              Bukti Homomorfik
+            </CardTitle>
+            <CardDescription>
+              Setiap suara menyimpan vektor ciphertext. Tally menjumlah dengan perkalian ciphertext per kandidat.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            <ProofTile label="Ledger lokal" value={`${voteLedger.length}`} />
+            <ProofTile label="Operasi" value="C1 x C2 mod p" />
+            <ProofTile label="Reveal pilihan" value="Tidak" />
+          </CardContent>
+        </Card>
+      </section>
     </main>
   )
 }
@@ -350,6 +458,17 @@ function StatusTile({
         <Icon className="size-4 text-primary" aria-hidden="true" />
       </div>
       <p className="mt-2 font-mono text-2xl font-black">{value}</p>
+    </div>
+  )
+}
+
+function ProofTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-background p-4">
+      <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-2 break-words font-mono text-lg font-black">{value}</p>
     </div>
   )
 }

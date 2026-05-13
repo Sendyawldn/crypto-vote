@@ -20,7 +20,7 @@ Next.js 15 matches the user constraint and gives one deployable for pages, route
 
 ## Security Boundary
 
-The current app treats voter input as untrusted at the UI and API boundary, but it does not yet enforce production authentication or durable authorization. The visible encryption record is a placeholder model for product flow only. Production work must move ballot encryption, key custody, tally proof generation, and audit trails to reviewed server-side services or maintained cryptographic libraries.
+The current app treats voter input as untrusted at the UI and API boundary, but it does not yet enforce production authentication or durable authorization. El Gamal math is implemented with native JavaScript BigInt for demo encryption and homomorphic aggregation. Production work must move key custody, tally proof generation, parameter review, and audit trails to reviewed server-side services or maintained cryptographic libraries.
 
 ## Realtime Decision
 
@@ -43,4 +43,3 @@ Provide separate development and production Compose lanes. Docker official guida
 ## Next Validation Action
 
 Review the first UI and API contracts with election operators, then prioritize the first trusted backend module.
-

@@ -2,7 +2,7 @@
 
 CryptoVote is a web-based electronic voting application for elections that need a clear voter flow, visible tally state, and a security model based on El Gamal homomorphic encryption.
 
-This first implementation is a Next.js 15 single-deployable application. It includes the voter workspace, live result visualization, public API contracts, and Docker lanes for local development and production-style runs. The cryptographic flow shown in the interface is an implementation scaffold, not a certified election system.
+This first implementation is a Next.js 15 single-deployable application. It includes the voter workspace, native BigInt El Gamal encryption, homomorphic ciphertext aggregation, receipt verification, live result visualization, public API contracts, and Docker lanes for local development and production-style runs. It is still a demo system, not a certified election platform.
 
 ## Audience
 
@@ -75,4 +75,3 @@ The current slice does not require secrets. Future production work must add envi
 - [Database Schema](docs/database-schema.md)
 - [Design Direction](docs/DESIGN.md)
 - [Docker Runtime](docs/docker-runtime.md)
-

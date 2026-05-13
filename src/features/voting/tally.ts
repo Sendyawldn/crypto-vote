@@ -1,4 +1,5 @@
 import type { Election, VoteReceipt } from "./types"
+import { createEncryptedVoteReceipt } from "@/lib/elgamal-vote"
 
 export function getTurnoutPercentage(ballotsCast: number, totalVoters: number) {
   if (totalVoters <= 0) {
@@ -23,7 +24,7 @@ export function getElectionResults(election: Election) {
     totalVoters: election.totalVoters,
     ballotsCast: election.ballotsCast,
     turnoutPercentage: getTurnoutPercentage(election.ballotsCast, election.totalVoters),
-    verificationStatus: "modeled-proof",
+    verificationStatus: "demo-elgamal",
     candidates: election.candidates.map((candidate) => ({
       id: candidate.id,
       name: candidate.name,
@@ -34,21 +35,25 @@ export function getElectionResults(election: Election) {
   }
 }
 
-export function createReceipt(candidateId: string, timestamp = new Date()): VoteReceipt {
-  const stamp = timestamp.toISOString()
-  const compact = `${candidateId}:${stamp}`
-  const encoded = btoa(compact)
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "")
-    .slice(0, 28)
-    .toUpperCase()
+export function createReceipt(
+  candidateId: string,
+  candidateIds: string[],
+  timestamp = new Date()
+): VoteReceipt {
+  const encryptedReceipt = createEncryptedVoteReceipt({
+    candidateIds,
+    selectedCandidateId: candidateId,
+    timestamp
+  })
 
   return {
     candidateId,
-    encryptedBallot: `EG-${encoded}`,
-    proofLabel: "Homomorphic tally model",
-    createdAt: stamp
+    encryptedBallot: encryptedReceipt.shortCode,
+    verificationToken: encryptedReceipt.token,
+    receiptHash: encryptedReceipt.receiptHash,
+    encryptedChoices: encryptedReceipt.encryptedChoices,
+    proofLabel: "El Gamal ciphertext vector",
+    createdAt: encryptedReceipt.createdAt
   }
 }
 

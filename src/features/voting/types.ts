@@ -1,3 +1,5 @@
+import type { EncryptedVoteChoice } from "@/lib/elgamal-vote"
+
 export type Candidate = {
   id: string
   name: string
@@ -20,7 +22,9 @@ export type Election = {
 export type VoteReceipt = {
   candidateId: string
   encryptedBallot: string
+  verificationToken: string
+  receiptHash: string
+  encryptedChoices: EncryptedVoteChoice[]
   proofLabel: string
   createdAt: string
 }
-

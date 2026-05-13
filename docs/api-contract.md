@@ -34,7 +34,7 @@ Returns public result data for one election.
   "title": "Campus Senate Election 2026",
   "totalVoters": 1280,
   "ballotsCast": 874,
-  "verificationStatus": "modeled-proof",
+  "verificationStatus": "demo-elgamal",
   "candidates": [
     {
       "id": "naya",
@@ -64,4 +64,3 @@ Ballot submission is not exposed as an API route in this slice. A future ballot 
 ## Next Validation Action
 
 Add an OpenAPI 3.1 document when ballot mutation routes are introduced.
-

@@ -4,7 +4,7 @@
 
 CryptoVote is an e-voting web application. The user requested Next.js 15 as the main framework, Tailwind CSS v4 for styling, shadcn/ui components, and Recharts for live voting results.
 
-The product context names El Gamal homomorphic encryption as the core security idea. The first delivery must make that flow visible without claiming certified production cryptography.
+The product context names El Gamal homomorphic encryption as the core security idea. The current implementation includes native BigInt El Gamal key generation, encryption, decryption, and homomorphic multiplication for demo vote vectors.
 
 ## Goals
 
@@ -15,7 +15,7 @@ The product context names El Gamal homomorphic encryption as the core security i
 
 ## Non-Goals For This Slice
 
-This slice does not provide production voter identity proofing, certified key ceremonies, permanent ballot storage, or a real El Gamal implementation. Those belong behind reviewed cryptographic libraries, audited protocols, and server-side trust boundaries.
+This slice does not provide production voter identity proofing, certified key ceremonies, permanent ballot storage, or audited cryptographic deployment. The El Gamal math is implemented for demonstration and education, while production use still needs reviewed parameters, key custody, protocols, and server-side trust boundaries.
 
 ## Runtime Evidence
 
@@ -33,4 +33,3 @@ This slice does not provide production voter identity proofing, certified key ce
 ## Next Validation Action
 
 Run the application with sample election data, then decide which backend trust boundary should be built first: identity, ballot storage, key management, or public audit verification.
-

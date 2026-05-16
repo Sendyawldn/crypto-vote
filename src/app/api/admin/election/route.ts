@@ -58,20 +58,30 @@ function isAdminRequest(request: Request) {
 function validateElectionUpdate(body: Partial<Election>):
   | { valid: true; election: Election }
   | { valid: false; message: string } {
-  if (!body.id || !body.title || !body.description || !body.region) {
-    return { valid: false, message: "Election identity fields are required" }
+  if (!body.id) {
+    return { valid: false, message: "Election id is required" }
   }
 
   if (!isElectionStatus(body.status)) {
     return { valid: false, message: "Election status must be draft, open, or closed" }
   }
 
-  if (!Array.isArray(body.candidates) || body.candidates.length < 2) {
-    return { valid: false, message: "At least two candidates are required" }
+  if (!Array.isArray(body.candidates)) {
+    return { valid: false, message: "Candidates must be an array" }
   }
 
-  if (!Array.isArray(body.authorizedVoters) || body.authorizedVoters.length === 0) {
-    return { valid: false, message: "At least one authorized voter is required" }
+  if (!Array.isArray(body.authorizedVoters)) {
+    return { valid: false, message: "Voters must be an array" }
+  }
+
+  if (body.status === "open") {
+    if (!body.title?.trim() || !body.description?.trim() || !body.region?.trim()) {
+      return { valid: false, message: "Title, description, and region are required before opening" }
+    }
+
+    if (body.candidates.length < 2) {
+      return { valid: false, message: "At least two candidates are required before opening" }
+    }
   }
 
   const candidates = body.candidates.map(normalizeCandidate)
@@ -81,9 +91,9 @@ function validateElectionUpdate(body: Partial<Election>):
     valid: true,
     election: {
       id: body.id,
-      title: body.title,
-      description: body.description,
-      region: body.region,
+      title: body.title ?? "",
+      description: body.description ?? "",
+      region: body.region ?? "",
       closesAt: body.closesAt ?? new Date().toISOString(),
       status: body.status,
       totalVoters: voters.length,
@@ -110,6 +120,7 @@ function normalizeVoter(voter: Voter): Voter {
   return {
     id: normalizeIdentifier(voter.id || voter.email),
     email: voter.email.trim().toLowerCase(),
+    name: voter.name?.trim(),
     hasVoted: Boolean(voter.hasVoted),
     votedAt: voter.votedAt
   }
@@ -126,4 +137,3 @@ function normalizeIdentifier(value: string) {
 function isElectionStatus(status: unknown): status is ElectionStatus {
   return status === "draft" || status === "open" || status === "closed"
 }
-

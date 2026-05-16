@@ -13,13 +13,44 @@ import {
   decryptAggregatedVote,
   verifyVoteToken
 } from "../../lib/elgamal-vote"
-import { election } from "./election-data"
+import type { Election } from "./types"
 import {
   applyLocalVote,
   createReceipt,
   getCandidatePercent,
   getTurnoutPercentage
 } from "./tally"
+
+const testElection: Election = {
+  id: "test-election",
+  title: "Test Election",
+  description: "Test election",
+  region: "Test Region",
+  closesAt: "2026-05-13T17:00:00+07:00",
+  status: "open",
+  totalVoters: 2,
+  ballotsCast: 0,
+  authorizedVoters: [],
+  admins: [],
+  candidates: [
+    {
+      id: "naya",
+      name: "Naya Putri",
+      party: "Civic Ledger",
+      color: "var(--chart-1)",
+      platform: "Transparansi anggaran.",
+      votes: 0
+    },
+    {
+      id: "reza",
+      name: "Reza Mahendra",
+      party: "Open Campus",
+      color: "var(--chart-2)",
+      platform: "Akses kegiatan.",
+      votes: 0
+    }
+  ]
+}
 
 describe("voting tally", () => {
   it("calculates turnout and candidate percentages", () => {
@@ -29,17 +60,17 @@ describe("voting tally", () => {
   })
 
   it("applies one local vote without mutating the source election", () => {
-    const updated = applyLocalVote(election, "naya")
+    const updated = applyLocalVote(testElection, "naya")
 
-    expect(updated.ballotsCast).toBe(election.ballotsCast + 1)
+    expect(updated.ballotsCast).toBe(testElection.ballotsCast + 1)
     expect(updated.candidates.find((candidate) => candidate.id === "naya")?.votes).toBe(1)
-    expect(election.candidates.find((candidate) => candidate.id === "naya")?.votes).toBe(0)
+    expect(testElection.candidates.find((candidate) => candidate.id === "naya")?.votes).toBe(0)
   })
 
   it("creates a deterministic receipt prefix", () => {
     const receipt = createReceipt(
       "naya",
-      election.candidates.map((candidate) => candidate.id),
+      testElection.candidates.map((candidate) => candidate.id),
       new Date("2026-05-13T09:00:00.000Z")
     )
 
@@ -60,7 +91,7 @@ describe("voting tally", () => {
   })
 
   it("verifies a vote token through the ledger without exposing the selected candidate", () => {
-    const candidateIds = election.candidates.map((candidate) => candidate.id)
+    const candidateIds = testElection.candidates.map((candidate) => candidate.id)
     const encryptedReceipt = createEncryptedVoteReceipt({
       candidateIds,
       selectedCandidateId: "reza",
@@ -74,7 +105,7 @@ describe("voting tally", () => {
   })
 
   it("aggregates encrypted vote vectors by candidate", () => {
-    const candidateIds = election.candidates.map((candidate) => candidate.id)
+    const candidateIds = testElection.candidates.map((candidate) => candidate.id)
     const firstReceipt = createEncryptedVoteReceipt({
       candidateIds,
       selectedCandidateId: "naya",

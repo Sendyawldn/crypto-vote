@@ -4,7 +4,7 @@
 
 1. The voter opens the election workspace.
 2. The voter enters a name only. No account or email is required.
-3. The app shows election status, turnout, candidate options, and encryption readiness.
+3. The app shows election status, turnout, candidate options, and encryption readiness after admin configuration exists.
 4. The voter selects one candidate while the election status is `open`.
 5. The app encrypts a candidate vector with El Gamal and displays an encrypted receipt token.
 6. The vote is counted locally and the receipt can be verified without revealing the selected candidate.
@@ -13,11 +13,12 @@
 
 1. The admin opens `/admin`.
 2. The admin logs in with the demo admin credential.
-2. The admin manages election title, candidates, and authorized voters while the election is in draft.
-3. The admin opens the election with `Mulai Pemilihan`.
-4. The admin can monitor voter names, but not their candidate choices.
-5. The admin closes the election with `Selesaikan Pemilihan`.
-6. The admin decrypts the aggregate tally after the election is closed.
+3. The admin fills election title, description, region, and candidate list from an empty initial state.
+4. The admin manages optional voter-name monitoring while the election is in draft.
+5. The admin opens the election with `Mulai Pemilihan`.
+6. The admin can monitor voter names, but not their candidate choices.
+7. The admin closes the election with `Selesaikan Pemilihan`.
+8. The admin decrypts the aggregate tally after the election is closed.
 
 ## Result Flow
 

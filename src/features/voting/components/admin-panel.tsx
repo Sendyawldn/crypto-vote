@@ -59,10 +59,22 @@ export function AdminPanel({ election }: AdminPanelProps) {
     [managedElection.authorizedVoters]
   )
 
+  async function loadElectionState() {
+    const response = await fetch("/api/admin/election", { cache: "no-store" })
+
+    if (!response.ok) {
+      return
+    }
+
+    const body = (await response.json()) as { election: Election }
+    setManagedElection(body.election)
+  }
+
   function login() {
     if (loginEmail.trim().toLowerCase() === adminEmail && password === adminPassword) {
       setIsLoggedIn(true)
       setLoginMessage("Login berhasil. Admin panel terbuka.")
+      loadElectionState()
       return
     }
 
@@ -70,6 +82,17 @@ export function AdminPanel({ election }: AdminPanelProps) {
   }
 
   function updateElectionStatus(status: ElectionStatus) {
+    if (
+      status === "open" &&
+      (!managedElection.title.trim() ||
+        !managedElection.description.trim() ||
+        !managedElection.region.trim() ||
+        managedElection.candidates.length < 2)
+    ) {
+      setAdminMessage("Isi judul, deskripsi, region, dan minimal dua kandidat sebelum membuka pemilihan.")
+      return
+    }
+
     setManagedElection((current) => ({ ...current, status }))
     setAdminMessage(
       status === "open"
@@ -254,6 +277,50 @@ export function AdminPanel({ election }: AdminPanelProps) {
         </div>
       </header>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Identitas Pemilihan</CardTitle>
+          <CardDescription>
+            Data ini kosong di awal dan harus diisi admin sebelum pemilihan dibuka.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          <label className="grid gap-2 text-sm font-medium">
+            Judul
+            <input
+              className="h-11 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={managedElection.title}
+              onChange={(event) =>
+                setManagedElection((current) => ({ ...current, title: event.target.value }))
+              }
+              placeholder="Judul pemilihan"
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Region
+            <input
+              className="h-11 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={managedElection.region}
+              onChange={(event) =>
+                setManagedElection((current) => ({ ...current, region: event.target.value }))
+              }
+              placeholder="Nama kampus/organisasi"
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-medium md:col-span-3">
+            Deskripsi
+            <textarea
+              className="min-h-20 rounded-md border bg-background p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={managedElection.description}
+              onChange={(event) =>
+                setManagedElection((current) => ({ ...current, description: event.target.value }))
+              }
+              placeholder="Deskripsi pemilihan"
+            />
+          </label>
+        </CardContent>
+      </Card>
+
       <section className="grid gap-5 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -412,4 +479,3 @@ function ProofTile({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
-

@@ -69,6 +69,21 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
     setHasMounted(true)
   }, [])
 
+  useEffect(() => {
+    async function loadElectionState() {
+      const response = await fetch("/api/admin/election", { cache: "no-store" })
+
+      if (!response.ok) {
+        return
+      }
+
+      const body = (await response.json()) as { election: Election }
+      setLiveElection(body.election)
+    }
+
+    loadElectionState()
+  }, [])
+
   const selectedCandidate = liveElection.candidates.find(
     (candidate) => candidate.id === selectedCandidateId
   )
@@ -97,9 +112,9 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
       return
     }
 
-    if (liveElection.status === "closed") {
+    if (liveElection.status !== "open") {
       setVerificationStatus("invalid")
-      setVerificationMessage("Pemilihan sudah selesai.")
+      setVerificationMessage("Pemilihan belum dibuka atau sudah selesai.")
       return
     }
 
@@ -121,7 +136,14 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         encryptedChoices: nextReceipt.encryptedChoices
       }
     ])
-    setLiveElection((current) => applyLocalVote(current, selectedCandidateId))
+    setLiveElection((current) => {
+      const updated = applyLocalVote(current, selectedCandidateId)
+
+      return {
+        ...updated,
+        totalVoters: Math.max(updated.totalVoters, updated.ballotsCast)
+      }
+    })
   }
 
   function verifyToken() {
@@ -144,7 +166,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
               CryptoVote
             </h1>
             <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
-              {liveElection.title} untuk {liveElection.region}. Pilih kandidat,
+              {liveElection.title || "Pemilihan belum dikonfigurasi"} untuk {liveElection.region || "wilayah belum diisi"}. Pilih kandidat,
               kunci suara, lalu pantau agregasi terenkripsi tanpa membuka pilihan
               individu.
             </p>
@@ -231,13 +253,19 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
               )
             })}
 
+            {liveElection.candidates.length === 0 ? (
+              <div className="rounded-lg border border-dashed bg-background p-4 text-sm leading-6 text-muted-foreground">
+                Kandidat belum tersedia. Admin harus login ke /admin dan mengisi data pemilihan terlebih dahulu.
+              </div>
+            ) : null}
+
             <Button
               className="w-full"
               size="lg"
               disabled={
                 !selectedCandidateId ||
                 Boolean(receipt) ||
-                liveElection.status === "closed" ||
+                liveElection.status !== "open" ||
                 !voterName.trim()
               }
               onClick={castVote}

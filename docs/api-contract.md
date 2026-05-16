@@ -93,7 +93,7 @@ Returns the current admin election state and the active persistence adapter.
 
 ## `PUT /api/admin/election`
 
-Saves election title, candidate list, authorized voter list, admin list, and election status. Uses MongoDB when `MONGODB_URI` is configured and memory fallback otherwise.
+Saves election title, candidate list, authorized voter list, admin list, and election status. Uses MongoDB when `MONGODB_URI` is configured and local `.data/election-state.json` fallback otherwise.
 
 ### Headers
 
@@ -130,7 +130,7 @@ Records one vote for an authorized DPT entry. The route rejects votes when the e
     "id": "campus-2026",
     "ballotsCast": 1
   },
-  "persistence": "memory"
+  "persistence": "local-file"
 }
 ```
 

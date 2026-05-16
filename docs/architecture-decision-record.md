@@ -30,7 +30,7 @@ Use client-side timed refresh for the first live result experience. It is enough
 
 ## Data Decision
 
-Use in-memory fixture data for this slice. Do not add a database until the project chooses voter identity, election lifecycle, ballot retention, audit log, and cryptographic proof requirements.
+Use an empty typed seed plus a gitignored local JSON fallback for this slice. Do not require a database for classroom demo runs, but keep the MongoDB adapter available for longer-lived persistence once voter identity, election lifecycle, ballot retention, audit log, and cryptographic proof requirements are finalized.
 
 ## Docker Decision
 

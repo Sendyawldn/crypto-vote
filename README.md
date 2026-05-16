@@ -97,7 +97,7 @@ Optional MongoDB persistence:
 MONGODB_URI="mongodb://localhost:27017" MONGODB_DB="cryptovote"
 ```
 
-When `MONGODB_URI` is absent, the admin API uses in-memory state for local demo use.
+When `MONGODB_URI` is absent, the admin API uses `.data/election-state.json` for local demo persistence. The file is gitignored, so local sessions survive refreshes and dev-server route reloads without entering the repository.
 
 ## Documentation
 

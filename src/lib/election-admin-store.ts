@@ -1,3 +1,5 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises"
+import path from "node:path"
 import { MongoClient, type Collection } from "mongodb"
 import { election as seedElection } from "@/features/voting/election-data"
 import type { Election } from "@/features/voting/types"
@@ -7,26 +9,32 @@ type ElectionDocument = Election & {
   updatedAt: string
 }
 
-let memoryElection: Election = seedElection
-let memoryHistory: Election[] = []
 let cachedClient: MongoClient | null = null
+const localStatePath = path.join(process.cwd(), ".data", "election-state.json")
+
+type ElectionStateFile = {
+  election: Election
+  history: Election[]
+}
 
 export async function getElectionState() {
   const collection = await getElectionCollection()
   const historyCollection = await getElectionHistoryCollection()
 
   if (!collection || !historyCollection) {
+    const fileState = await readLocalElectionState()
+
     return {
-      election: memoryElection,
-      history: memoryHistory,
-      persistence: "memory" as const
+      election: fileState.election,
+      history: fileState.history,
+      persistence: "local-file" as const
     }
   }
 
   const existing = await collection.findOne({ _id: seedElection.id })
   const history = (await historyCollection
     .find({})
-    .sort({ archivedAt: -1 })
+    .sort({ updatedAt: -1 })
     .toArray()).map(stripMongoFields)
 
   if (existing) {
@@ -55,11 +63,17 @@ export async function saveElectionState(nextElection: Election) {
   const historyCollection = await getElectionHistoryCollection()
 
   if (!collection || !historyCollection) {
-    memoryElection = nextElection
+    const fileState = await readLocalElectionState()
+    const nextState = {
+      election: nextElection,
+      history: fileState.history
+    }
+    await writeLocalElectionState(nextState)
+
     return {
-      election: memoryElection,
-      history: memoryHistory,
-      persistence: "memory" as const
+      election: nextState.election,
+      history: nextState.history,
+      persistence: "local-file" as const
     }
   }
 
@@ -94,12 +108,17 @@ export async function archiveElectionState(electionToArchive: Election) {
   }
 
   if (!collection || !historyCollection) {
-    memoryHistory = [archivedElection, ...memoryHistory]
-    memoryElection = seedElection
+    const fileState = await readLocalElectionState()
+    const nextState = {
+      election: cloneElection(seedElection),
+      history: [archivedElection, ...fileState.history]
+    }
+    await writeLocalElectionState(nextState)
+
     return {
-      election: memoryElection,
-      history: memoryHistory,
-      persistence: "memory" as const
+      election: nextState.election,
+      history: nextState.history,
+      persistence: "local-file" as const
     }
   }
 
@@ -236,4 +255,33 @@ function stripMongoFields(document: ElectionDocument): Election {
   delete (election as Partial<ElectionDocument>).updatedAt
 
   return election
+}
+
+async function readLocalElectionState(): Promise<ElectionStateFile> {
+  try {
+    const content = await readFile(localStatePath, "utf8")
+    const state = JSON.parse(content) as Partial<ElectionStateFile>
+
+    return {
+      election: state.election ?? cloneElection(seedElection),
+      history: state.history ?? []
+    }
+  } catch {
+    const initialState = {
+      election: cloneElection(seedElection),
+      history: []
+    }
+    await writeLocalElectionState(initialState)
+
+    return initialState
+  }
+}
+
+async function writeLocalElectionState(state: ElectionStateFile) {
+  await mkdir(path.dirname(localStatePath), { recursive: true })
+  await writeFile(localStatePath, `${JSON.stringify(state, null, 2)}\n`, "utf8")
+}
+
+function cloneElection(election: Election): Election {
+  return JSON.parse(JSON.stringify(election)) as Election
 }

@@ -2,7 +2,7 @@
 
 ## Current State
 
-CryptoVote starts from an empty typed seed state. Admins configure election identity and candidates before voting opens. The app can persist admin election state through the official MongoDB Node.js driver when `MONGODB_URI` is configured. If MongoDB is not configured, `/api/admin/election` falls back to in-memory state so the presentation demo still works offline. MongoDB driver setup source: https://www.mongodb.com/docs/drivers/node/current/, fetched 2026-05-13.
+CryptoVote starts from an empty typed seed state. Admins configure election identity and candidates before voting opens. The app can persist admin election state through the official MongoDB Node.js driver when `MONGODB_URI` is configured. If MongoDB is not configured, `/api/admin/election` falls back to the local `.data/election-state.json` file so the presentation demo still works offline and survives browser refreshes or route recompilation. MongoDB driver setup source: https://www.mongodb.com/docs/drivers/node/current/, fetched 2026-05-13.
 
 ## Future Data Model
 

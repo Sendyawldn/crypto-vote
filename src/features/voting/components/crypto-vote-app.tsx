@@ -111,15 +111,14 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
   function checkVoter() {
     const normalizedInput = voterIdentifier.trim().toLowerCase()
     const foundVoter = liveElection.authorizedVoters.find((voter) =>
-      [voter.identifier, voter.id, voter.email]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase() === normalizedInput)
+      getVoterLookupValues(voter).some((value) => value === normalizedInput)
     )
 
     setReceipt(null)
     setSelectedCandidateId("")
     setVerificationToken("")
     setVerificationStatus("idle")
+    setVerificationMessage("Tempel token EGV1 dari receipt untuk mengecek status hitung.")
 
     if (!foundVoter) {
       setVerifiedVoter(null)
@@ -158,15 +157,17 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        voterIdentifier: verifiedVoter.identifier,
+        voterIdentifier: getPrimaryVoterIdentifier(verifiedVoter),
         candidateId: selectedCandidateId
       })
     })
     const body = await response.json()
 
     if (!response.ok) {
+      const message = body.title ?? "Suara ditolak oleh sistem pusat."
       setVerificationStatus("invalid")
-      setVerificationMessage(body.title ?? "Suara ditolak oleh sistem pusat.")
+      setVerificationMessage(message)
+      setVoterCheckMessage(message)
       setVerifiedVoter(null)
       return
     }
@@ -180,11 +181,12 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         token: nextReceipt.verificationToken,
         createdAt: nextReceipt.createdAt,
         candidateId: selectedCandidateId,
-        voterName: verifiedVoter.identifier,
+        voterName: getPrimaryVoterIdentifier(verifiedVoter),
         encryptedChoices: nextReceipt.encryptedChoices
       }
     ])
     setLiveElection(body.election)
+    setVerifiedVoter(null)
     setVoterCheckMessage("Suara masuk. Ganti Email/ID/NIM lalu tekan Cek DPT untuk pemilih berikutnya.")
   }
 
@@ -591,4 +593,14 @@ function ProofTile({ label, value }: { label: string; value: string }) {
       <p className="mt-2 break-words font-mono text-lg font-black">{value}</p>
     </div>
   )
+}
+
+function getPrimaryVoterIdentifier(voter: Voter) {
+  return voter.identifier || voter.id || voter.email
+}
+
+function getVoterLookupValues(voter: Voter) {
+  return [voter.identifier, voter.id, voter.email]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.trim().toLowerCase())
 }

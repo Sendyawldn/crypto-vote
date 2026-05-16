@@ -40,6 +40,7 @@ pnpm-debug.log*
 
 # Docker and local runtime data
 docker-data/
+.data/
 tmp/
 temp/
 

@@ -59,12 +59,13 @@ export function AdminPanel({ election }: AdminPanelProps) {
         .map((voter) => voter.identifier || voter.email),
     [managedElection.authorizedVoters]
   )
-  const hasConfiguredElection =
+  const hasConfiguredElection = Boolean(
     managedElection.title.trim() &&
     managedElection.description.trim() &&
     managedElection.region.trim() &&
     managedElection.candidates.length >= 2 &&
     managedElection.authorizedVoters.length > 0
+  )
   const hasVotingSession = managedElection.status !== "draft" || managedElection.ballotsCast > 0
 
   async function loadElectionState() {
@@ -178,6 +179,17 @@ export function AdminPanel({ election }: AdminPanelProps) {
     }
 
     const identifier = voterIdentifierDraft.trim()
+    const normalizedIdentifier = identifier.toLowerCase()
+    const alreadyExists = managedElection.authorizedVoters.some((voter) =>
+      [voter.identifier, voter.id, voter.email]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase() === normalizedIdentifier)
+    )
+
+    if (alreadyExists) {
+      setAdminMessage("Pemilih ini sudah ada di DPT.")
+      return
+    }
 
     setManagedElection((current) => ({
       ...current,

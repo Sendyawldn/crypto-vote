@@ -47,7 +47,7 @@ export function AdminPanel({ election }: AdminPanelProps) {
     party: "",
     platform: ""
   })
-  const [voterNameDraft, setVoterNameDraft] = useState("")
+  const [voterIdentifierDraft, setVoterIdentifierDraft] = useState("")
   const [adminMessage, setAdminMessage] = useState("Admin memiliki full access atas konfigurasi demo.")
   const [finalTally, setFinalTally] = useState<Record<string, number> | null>(null)
 
@@ -55,9 +55,16 @@ export function AdminPanel({ election }: AdminPanelProps) {
     () =>
       managedElection.authorizedVoters
         .filter((voter) => voter.hasVoted)
-        .map((voter) => voter.name ?? voter.email),
+        .map((voter) => voter.identifier || voter.email),
     [managedElection.authorizedVoters]
   )
+  const hasConfiguredElection =
+    managedElection.title.trim() &&
+    managedElection.description.trim() &&
+    managedElection.region.trim() &&
+    managedElection.candidates.length >= 2 &&
+    managedElection.authorizedVoters.length > 0
+  const hasVotingSession = managedElection.status !== "draft" || managedElection.ballotsCast > 0
 
   async function loadElectionState() {
     const response = await fetch("/api/admin/election", { cache: "no-store" })
@@ -84,12 +91,14 @@ export function AdminPanel({ election }: AdminPanelProps) {
   function updateElectionStatus(status: ElectionStatus) {
     if (
       status === "open" &&
-      (!managedElection.title.trim() ||
-        !managedElection.description.trim() ||
-        !managedElection.region.trim() ||
-        managedElection.candidates.length < 2)
+      !hasConfiguredElection
     ) {
-      setAdminMessage("Isi judul, deskripsi, region, dan minimal dua kandidat sebelum membuka pemilihan.")
+      setAdminMessage("Isi identitas pemilihan, minimal dua kandidat, dan DPT sebelum membuka pemilihan.")
+      return
+    }
+
+    if (status === "closed" && !hasVotingSession) {
+      setAdminMessage("Belum ada sesi vote. Mulai pemilihan terlebih dahulu.")
       return
     }
 
@@ -108,6 +117,11 @@ export function AdminPanel({ election }: AdminPanelProps) {
   }
 
   function addCandidate() {
+    if (managedElection.status !== "draft") {
+      setAdminMessage("Kandidat tidak bisa ditambahkan setelah pemilihan dimulai.")
+      return
+    }
+
     if (!candidateDraft.name.trim() || !candidateDraft.party.trim()) {
       setAdminMessage("Nama dan kelompok kandidat wajib diisi.")
       return
@@ -135,6 +149,11 @@ export function AdminPanel({ election }: AdminPanelProps) {
   }
 
   function removeCandidate(candidateId: string) {
+    if (managedElection.status !== "draft") {
+      setAdminMessage("Kandidat tidak bisa dihapus setelah pemilihan dimulai.")
+      return
+    }
+
     setManagedElection((current) => ({
       ...current,
       candidates: current.candidates.filter((candidate) => candidate.id !== candidateId)
@@ -142,11 +161,18 @@ export function AdminPanel({ election }: AdminPanelProps) {
     setAdminMessage("Kandidat dihapus dari konfigurasi admin.")
   }
 
-  function addVoterName() {
-    if (!voterNameDraft.trim()) {
-      setAdminMessage("Masukkan nama pemilih.")
+  function addVoterIdentifier() {
+    if (managedElection.status !== "draft") {
+      setAdminMessage("DPT tidak bisa ditambahkan setelah pemilihan dimulai.")
       return
     }
+
+    if (!voterIdentifierDraft.trim()) {
+      setAdminMessage("Masukkan Email, ID, atau NIM pemilih.")
+      return
+    }
+
+    const identifier = voterIdentifierDraft.trim()
 
     setManagedElection((current) => ({
       ...current,
@@ -154,15 +180,17 @@ export function AdminPanel({ election }: AdminPanelProps) {
       authorizedVoters: [
         ...current.authorizedVoters,
         {
-          id: `NAME-${current.authorizedVoters.length + 1}`,
-          email: `${voterNameDraft.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}@guest.vote`,
-          name: voterNameDraft.trim(),
+          id: identifier.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          email: identifier.includes("@")
+            ? identifier.toLowerCase()
+            : `${identifier.toLowerCase().replace(/[^a-z0-9]+/g, "-")}@local.voter`,
+          identifier,
           hasVoted: false
         }
       ]
     }))
-    setVoterNameDraft("")
-    setAdminMessage("Nama pemilih ditambahkan ke daftar monitoring admin.")
+    setVoterIdentifierDraft("")
+    setAdminMessage("Pemilih ditambahkan ke DPT.")
   }
 
   async function syncAdminState() {
@@ -261,15 +289,25 @@ export function AdminPanel({ election }: AdminPanelProps) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={() => updateElectionStatus("open")}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => updateElectionStatus("open")}
+              disabled={managedElection.status !== "draft" || !hasConfiguredElection}
+            >
               <Play className="size-4" aria-hidden="true" />
               Mulai Pemilihan
             </Button>
-            <Button type="button" variant="outline" onClick={() => updateElectionStatus("closed")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => updateElectionStatus("closed")}
+              disabled={!hasVotingSession || managedElection.status === "closed"}
+            >
               <Square className="size-4" aria-hidden="true" />
               Selesaikan Pemilihan
             </Button>
-            <Button type="button" onClick={syncAdminState}>
+            <Button type="button" onClick={syncAdminState} disabled={!hasVotingSession}>
               <UserCheck className="size-4" aria-hidden="true" />
               Simpan State
             </Button>
@@ -356,7 +394,12 @@ export function AdminPanel({ election }: AdminPanelProps) {
                   setCandidateDraft((current) => ({ ...current, platform: event.target.value }))
                 }
               />
-              <Button type="button" variant="secondary" onClick={addCandidate}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={addCandidate}
+                disabled={managedElection.status !== "draft"}
+              >
                 <Plus className="size-4" aria-hidden="true" />
                 Tambah Kandidat
               </Button>
@@ -377,6 +420,7 @@ export function AdminPanel({ election }: AdminPanelProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => removeCandidate(candidate.id)}
+                    disabled={managedElection.status !== "draft"}
                     aria-label={`Hapus ${candidate.name}`}
                   >
                     <Trash2 className="size-4" aria-hidden="true" />
@@ -391,18 +435,23 @@ export function AdminPanel({ election }: AdminPanelProps) {
           <CardHeader>
             <CardTitle>Monitoring Pemilih</CardTitle>
             <CardDescription>
-              User tidak perlu akun. Admin dapat mencatat nama dan melihat siapa yang sudah memilih.
+              Masukkan daftar Email, ID, atau NIM yang diizinkan memilih.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <input
                 className="h-11 min-w-0 flex-1 rounded-md border bg-background px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="Nama pemilih"
-                value={voterNameDraft}
-                onChange={(event) => setVoterNameDraft(event.target.value)}
+                placeholder="Email / ID / NIM"
+                value={voterIdentifierDraft}
+                onChange={(event) => setVoterIdentifierDraft(event.target.value)}
               />
-              <Button type="button" variant="secondary" onClick={addVoterName}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={addVoterIdentifier}
+                disabled={managedElection.status !== "draft"}
+              >
                 <Plus className="size-4" aria-hidden="true" />
                 Tambah
               </Button>
@@ -414,7 +463,7 @@ export function AdminPanel({ election }: AdminPanelProps) {
                   className="flex items-center justify-between gap-3 rounded-md border bg-background p-3"
                 >
                   <div>
-                    <p className="font-semibold">{voter.name ?? voter.id}</p>
+                    <p className="font-semibold">{voter.identifier || voter.id}</p>
                     <p className="text-sm text-muted-foreground">{voter.email}</p>
                   </div>
                   <Badge variant={voter.hasVoted ? "verified" : "outline"}>

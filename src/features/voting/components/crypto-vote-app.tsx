@@ -34,7 +34,7 @@ import {
   CardTitle
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import type { Election, VoteReceipt } from "../types"
+import type { Election, VoteReceipt, Voter } from "../types"
 import {
   verifyVoteToken,
   type VoteLedgerEntry
@@ -55,7 +55,9 @@ type CryptoVoteAppProps = {
 export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
   const [liveElection, setLiveElection] = useState(election)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("")
-  const [voterName, setVoterName] = useState("")
+  const [voterIdentifier, setVoterIdentifier] = useState("")
+  const [verifiedVoter, setVerifiedVoter] = useState<Voter | null>(null)
+  const [voterCheckMessage, setVoterCheckMessage] = useState("Masukkan Email, ID, atau NIM lalu tekan Cek DPT.")
   const [receipt, setReceipt] = useState<VoteReceipt | null>(null)
   const [voteLedger, setVoteLedger] = useState<VoteLedgerEntry[]>([])
   const [verificationToken, setVerificationToken] = useState("")
@@ -107,8 +109,37 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
     [liveElection.ballotsCast]
   )
 
+  function checkVoter() {
+    const normalizedInput = voterIdentifier.trim().toLowerCase()
+    const foundVoter = liveElection.authorizedVoters.find((voter) =>
+      [voter.identifier, voter.id, voter.email]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase() === normalizedInput)
+    )
+
+    setReceipt(null)
+    setSelectedCandidateId("")
+    setVerificationToken("")
+    setVerificationStatus("idle")
+
+    if (!foundVoter) {
+      setVerifiedVoter(null)
+      setVoterCheckMessage("Data tidak ada di DPT. Hubungi admin.")
+      return
+    }
+
+    if (foundVoter.hasVoted) {
+      setVerifiedVoter(null)
+      setVoterCheckMessage("Pemilih ini sudah tercatat memilih.")
+      return
+    }
+
+    setVerifiedVoter(foundVoter)
+    setVoterCheckMessage("DPT valid. Surat suara sudah dibuka untuk pemilih ini.")
+  }
+
   function castVote() {
-    if (!selectedCandidateId || receipt || !voterName.trim()) {
+    if (!selectedCandidateId || receipt || !verifiedVoter) {
       return
     }
 
@@ -132,7 +163,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         token: nextReceipt.verificationToken,
         createdAt: nextReceipt.createdAt,
         candidateId: selectedCandidateId,
-        voterName: voterName.trim(),
+        voterName: verifiedVoter.identifier,
         encryptedChoices: nextReceipt.encryptedChoices
       }
     ])
@@ -141,9 +172,14 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
 
       return {
         ...updated,
-        totalVoters: Math.max(updated.totalVoters, updated.ballotsCast)
+        authorizedVoters: updated.authorizedVoters.map((voter) =>
+          voter.id === verifiedVoter.id
+            ? { ...voter, hasVoted: true, votedAt: nextReceipt.createdAt }
+            : voter
+        )
       }
     })
+    setVoterCheckMessage("Suara masuk. Ganti Email/ID/NIM lalu tekan Cek DPT untuk pemilih berikutnya.")
   }
 
   function verifyToken() {
@@ -178,7 +214,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         </div>
 
         <div className="mt-6 grid gap-3 border-t pt-5 md:grid-cols-4">
-          <CustodyStep label="1. Identitas" value={voterName.trim() ? "Nama tercatat" : "Isi nama"} />
+          <CustodyStep label="1. DPT" value={verifiedVoter ? "Pemilih valid" : "Cek pemilih"} />
           <CustodyStep label="2. Enkripsi" value={receipt ? "Receipt tersegel" : "Siap El Gamal"} />
           <CustodyStep label="3. Ledger" value={`${voteLedger.length} token`} />
           <CustodyStep label="4. Tally" value={liveElection.status === "closed" ? "Final" : "Terkunci"} />
@@ -187,17 +223,28 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
 
       <section className="custody-rail grid gap-4 rounded-lg border p-4 shadow-sm sm:grid-cols-[1fr_auto]">
         <label className="grid gap-2 text-sm font-medium">
-          Nama pemilih
+          Email / ID / NIM
           <input
             className="h-11 rounded-md border bg-card px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={voterName}
-            onChange={(event) => setVoterName(event.target.value)}
-            placeholder="Masukkan nama"
+            value={voterIdentifier}
+            onChange={(event) => {
+              setVoterIdentifier(event.target.value)
+              setVerifiedVoter(null)
+              setReceipt(null)
+              setSelectedCandidateId("")
+              setVoterCheckMessage("Tekan Cek DPT untuk membuka surat suara.")
+            }}
+            placeholder="Masukkan Email, ID, atau NIM"
           />
+          <span className="text-xs text-muted-foreground">{voterCheckMessage}</span>
         </label>
-        <div className="flex items-end">
-          <Badge variant="outline" className="min-h-11 px-4">
-            Voter bebas
+        <div className="flex items-end gap-2">
+          <Button type="button" variant="secondary" onClick={checkVoter} disabled={!voterIdentifier.trim()}>
+            <Check className="size-4" aria-hidden="true" />
+            Cek DPT
+          </Button>
+          <Badge variant={verifiedVoter ? "verified" : "outline"} className="min-h-11 px-4">
+            {verifiedVoter ? "DPT valid" : "Belum dicek"}
           </Badge>
         </div>
       </section>
@@ -210,7 +257,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
               Surat Suara
             </CardTitle>
             <CardDescription>
-              Masukkan nama, pilih kandidat, lalu kunci suara terenkripsi.
+              Cek Email/ID/NIM terlebih dahulu, lalu pilih kandidat dan kunci suara terenkripsi.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -226,7 +273,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
                     selected && "border-primary bg-secondary shadow-md ring-1 ring-primary/20",
                     receipt && !selected && "opacity-60"
                   )}
-                  onClick={() => !receipt && setSelectedCandidateId(candidate.id)}
+                  onClick={() => !receipt && verifiedVoter && setSelectedCandidateId(candidate.id)}
                   aria-pressed={selected}
                 >
                   <span className="flex items-start justify-between gap-4">
@@ -266,7 +313,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
                 !selectedCandidateId ||
                 Boolean(receipt) ||
                 liveElection.status !== "open" ||
-                !voterName.trim()
+                !verifiedVoter
               }
               onClick={castVote}
             >

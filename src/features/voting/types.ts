@@ -14,6 +14,7 @@ export type ElectionStatus = "draft" | "open" | "closed"
 export type Voter = {
   id: string
   email: string
+  identifier: string
   name?: string
   hasVoted: boolean
   votedAt?: string

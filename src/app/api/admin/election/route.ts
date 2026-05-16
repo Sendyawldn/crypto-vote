@@ -117,9 +117,12 @@ function normalizeCandidate(candidate: Candidate): Candidate {
 }
 
 function normalizeVoter(voter: Voter): Voter {
+  const identifier = (voter.identifier || voter.id || voter.email).trim()
+
   return {
-    id: normalizeIdentifier(voter.id || voter.email),
-    email: voter.email.trim().toLowerCase(),
+    id: normalizeIdentifier(identifier),
+    email: (voter.email || `${normalizeIdentifier(identifier)}@local.voter`).trim().toLowerCase(),
+    identifier,
     name: voter.name?.trim(),
     hasVoted: Boolean(voter.hasVoted),
     votedAt: voter.votedAt

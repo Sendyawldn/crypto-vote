@@ -101,6 +101,39 @@ Saves election title, candidate list, authorized voter list, admin list, and ele
 
 The current UI route for these controls is `/admin`. Demo credential: `admin@kampus.test` / `admin123`.
 
+## `POST /api/admin/election`
+
+Archives the provided closed or active election into session history, then resets the active election to the empty draft seed.
+
+### Headers
+
+- `x-cryptovote-admin: true`
+
+## `POST /api/elections/{electionId}/results`
+
+Records one vote for an authorized DPT entry. The route rejects votes when the election is not open, the identifier is not in DPT, the identifier has already voted, or the candidate does not exist.
+
+### Request
+
+```json
+{
+  "voterIdentifier": "A11.2024.00123",
+  "candidateId": "candidate-a"
+}
+```
+
+### Response `200`
+
+```json
+{
+  "election": {
+    "id": "campus-2026",
+    "ballotsCast": 1
+  },
+  "persistence": "memory"
+}
+```
+
 ### Response `403`
 
 ```json

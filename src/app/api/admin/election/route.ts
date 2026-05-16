@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server"
-import { getElectionState, saveElectionState } from "@/lib/election-admin-store"
+import {
+  archiveElectionState,
+  getElectionState,
+  saveElectionState
+} from "@/lib/election-admin-store"
 import type { Candidate, Election, ElectionStatus, Voter } from "@/features/voting/types"
 
 const adminHeader = "x-cryptovote-admin"
@@ -45,6 +49,43 @@ export async function PUT(request: Request) {
   const saved = await saveElectionState(validation.election)
 
   return NextResponse.json(saved, {
+    headers: {
+      "Cache-Control": "no-store"
+    }
+  })
+}
+
+export async function POST(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json(
+      {
+        type: "https://cryptovote.local/problems/forbidden",
+        title: "Admin authorization required",
+        status: 403,
+        code: "ADMIN_REQUIRED"
+      },
+      { status: 403 }
+    )
+  }
+
+  const body = (await request.json()) as Partial<Election>
+  const validation = validateElectionUpdate(body)
+
+  if (!validation.valid) {
+    return NextResponse.json(
+      {
+        type: "https://cryptovote.local/problems/invalid-election",
+        title: validation.message,
+        status: 400,
+        code: "INVALID_ELECTION_ARCHIVE"
+      },
+      { status: 400 }
+    )
+  }
+
+  const archived = await archiveElectionState(validation.election)
+
+  return NextResponse.json(archived, {
     headers: {
       "Cache-Control": "no-store"
     }

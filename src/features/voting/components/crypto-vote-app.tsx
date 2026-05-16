@@ -41,7 +41,6 @@ import {
 } from "@/lib/elgamal-vote"
 import { DEMO_ELGAMAL_PARAMETERS } from "@/lib/elgamal"
 import {
-  applyLocalVote,
   createReceipt,
   getCandidatePercent,
   getTurnoutPercentage
@@ -138,7 +137,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
     setVoterCheckMessage("DPT valid. Surat suara sudah dibuka untuk pemilih ini.")
   }
 
-  function castVote() {
+  async function castVote() {
     if (!selectedCandidateId || receipt || !verifiedVoter) {
       return
     }
@@ -153,6 +152,24 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
       selectedCandidateId,
       liveElection.candidates.map((candidate) => candidate.id)
     )
+    const response = await fetch(`/api/elections/${liveElection.id}/results`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        voterIdentifier: verifiedVoter.identifier,
+        candidateId: selectedCandidateId
+      })
+    })
+    const body = await response.json()
+
+    if (!response.ok) {
+      setVerificationStatus("invalid")
+      setVerificationMessage(body.title ?? "Suara ditolak oleh sistem pusat.")
+      setVerifiedVoter(null)
+      return
+    }
 
     setReceipt(nextReceipt)
     setVerificationToken(nextReceipt.verificationToken)
@@ -167,18 +184,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         encryptedChoices: nextReceipt.encryptedChoices
       }
     ])
-    setLiveElection((current) => {
-      const updated = applyLocalVote(current, selectedCandidateId)
-
-      return {
-        ...updated,
-        authorizedVoters: updated.authorizedVoters.map((voter) =>
-          voter.id === verifiedVoter.id
-            ? { ...voter, hasVoted: true, votedAt: nextReceipt.createdAt }
-            : voter
-        )
-      }
-    })
+    setLiveElection(body.election)
     setVoterCheckMessage("Suara masuk. Ganti Email/ID/NIM lalu tekan Cek DPT untuk pemilih berikutnya.")
   }
 

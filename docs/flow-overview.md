@@ -19,10 +19,12 @@
 3. The admin fills election title, description, region, and candidate list from an empty initial state.
 4. The admin adds Email, ID, or NIM entries to the DPT while the election is in draft.
 5. The admin opens the election with `Mulai Pemilihan`.
-6. After opening, candidates and DPT entries are locked.
-7. The admin can monitor which DPT entries have voted, but not their candidate choices.
-8. The admin closes the election with `Selesaikan Pemilihan`.
-9. The admin decrypts the aggregate tally after the election is closed.
+6. Opening the election saves it as the active session read by the public voter page.
+7. After opening, candidates and DPT entries are locked.
+8. The admin can monitor which DPT entries have voted, but not their candidate choices.
+9. The admin closes the election with `Selesaikan Pemilihan`.
+10. The admin decrypts the aggregate tally after the election is closed.
+11. The admin saves the closed state, which archives the session into history and resets the active election to an empty draft.
 
 ## Result Flow
 

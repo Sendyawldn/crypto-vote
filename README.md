@@ -85,7 +85,9 @@ Both commands expose the app on `http://localhost:3000`.
 
 The current slice does not require secrets. Future production work must add environment-backed values for election keys, session signing, database credentials, and audit storage.
 
-The app starts with empty election data. The admin must open `/admin`, log in, fill the election identity, add candidates, add the DPT voter list, and start the election before users can vote. The public voting page asks for Email, ID, or NIM, then the voter must press `Cek DPT` before the ballot opens.
+The app starts with empty election data. The admin must open `/admin`, log in, fill the election identity, add candidates, add the DPT voter list, and start the election before users can vote. Clicking `Mulai Pemilihan` saves the active session so the public page can load its candidates. The public voting page asks for Email, ID, or NIM, then the voter must press `Cek DPT` before the ballot opens.
+
+When the election is closed, clicking `Simpan State` archives the completed session into history and resets the active form to an empty draft for the next election.
 
 The demo keeps a fixed private exponent so presentation runs are reproducible, while each vote encryption still uses a fresh random nonce. Production keys must be generated and guarded through a formal key ceremony, not source code.
 

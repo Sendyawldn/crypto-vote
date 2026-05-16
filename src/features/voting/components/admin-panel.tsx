@@ -41,6 +41,7 @@ export function AdminPanel({ election }: AdminPanelProps) {
   const [password, setPassword] = useState("")
   const [loginMessage, setLoginMessage] = useState("Login admin diperlukan untuk membuka kontrol penuh.")
   const [managedElection, setManagedElection] = useState(election)
+  const [history, setHistory] = useState<Election[]>([])
   const [voteLedger] = useState<VoteLedgerEntry[]>([])
   const [candidateDraft, setCandidateDraft] = useState({
     name: "",
@@ -73,8 +74,9 @@ export function AdminPanel({ election }: AdminPanelProps) {
       return
     }
 
-    const body = (await response.json()) as { election: Election }
+    const body = (await response.json()) as { election: Election; history: Election[] }
     setManagedElection(body.election)
+    setHistory(body.history ?? [])
   }
 
   function login() {
@@ -88,7 +90,7 @@ export function AdminPanel({ election }: AdminPanelProps) {
     setLoginMessage("Email atau password admin salah.")
   }
 
-  function updateElectionStatus(status: ElectionStatus) {
+  async function updateElectionStatus(status: ElectionStatus) {
     if (
       status === "open" &&
       !hasConfiguredElection
@@ -102,10 +104,11 @@ export function AdminPanel({ election }: AdminPanelProps) {
       return
     }
 
-    setManagedElection((current) => ({ ...current, status }))
+    const nextElection = { ...managedElection, status }
+    setManagedElection(nextElection)
     setAdminMessage(
       status === "open"
-        ? "Pemilihan dibuka. User bisa langsung voting dengan nama."
+        ? "Pemilihan dibuka dan sesi aktif tersimpan. Halaman pemilih sudah bisa melihat kandidat."
         : status === "closed"
           ? "Pemilihan selesai. Admin dapat mendekripsi hasil akhir."
           : "Pemilihan dikembalikan ke draft untuk pengaturan."
@@ -114,6 +117,8 @@ export function AdminPanel({ election }: AdminPanelProps) {
     if (status === "closed") {
       decryptFinalTally()
     }
+
+    await persistElectionState(nextElection)
   }
 
   function addCandidate() {
@@ -193,9 +198,29 @@ export function AdminPanel({ election }: AdminPanelProps) {
     setAdminMessage("Pemilih ditambahkan ke DPT.")
   }
 
-  async function syncAdminState() {
+  async function persistElectionState(electionToSave: Election) {
     const response = await fetch("/api/admin/election", {
       method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-cryptovote-admin": "true"
+      },
+      body: JSON.stringify(electionToSave)
+    })
+    const body = await response.json()
+
+    if (!response.ok) {
+      setAdminMessage(body.title ?? "Gagal menyimpan state admin.")
+      return
+    }
+
+    setHistory(body.history ?? [])
+    setAdminMessage(`State admin disimpan ke ${body.persistence}.`)
+  }
+
+  async function syncAdminState() {
+    const response = await fetch("/api/admin/election", {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-cryptovote-admin": "true"
@@ -205,11 +230,14 @@ export function AdminPanel({ election }: AdminPanelProps) {
     const body = await response.json()
 
     if (!response.ok) {
-      setAdminMessage(body.title ?? "Gagal menyimpan state admin.")
+      setAdminMessage(body.title ?? "Gagal mengarsipkan sesi.")
       return
     }
 
-    setAdminMessage(`State admin disimpan ke ${body.persistence}.`)
+    setManagedElection(body.election)
+    setHistory(body.history ?? [])
+    setFinalTally(null)
+    setAdminMessage(`Sesi tersimpan ke riwayat ${body.persistence}. Form dikosongkan untuk sesi baru.`)
   }
 
   function decryptFinalTally() {
@@ -302,12 +330,12 @@ export function AdminPanel({ election }: AdminPanelProps) {
               type="button"
               variant="outline"
               onClick={() => updateElectionStatus("closed")}
-              disabled={!hasVotingSession || managedElection.status === "closed"}
+              disabled={!hasVotingSession || managedElection.status !== "open"}
             >
               <Square className="size-4" aria-hidden="true" />
               Selesaikan Pemilihan
             </Button>
-            <Button type="button" onClick={syncAdminState} disabled={!hasVotingSession}>
+            <Button type="button" onClick={syncAdminState} disabled={managedElection.status !== "closed"}>
               <UserCheck className="size-4" aria-hidden="true" />
               Simpan State
             </Button>
@@ -512,6 +540,39 @@ export function AdminPanel({ election }: AdminPanelProps) {
           <p className="rounded-md border bg-background p-3 text-sm text-muted-foreground">
             {adminMessage}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Riwayat Sesi</CardTitle>
+          <CardDescription>
+            Sesi yang sudah disimpan tetap ada di riwayat, sementara form utama kembali kosong.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {history.length === 0 ? (
+            <p className="rounded-md border bg-background p-3 text-sm text-muted-foreground">
+              Belum ada sesi yang disimpan.
+            </p>
+          ) : (
+            history.map((session) => (
+              <div
+                key={session.id}
+                className="grid gap-2 rounded-md border bg-background p-3 md:grid-cols-[1fr_auto]"
+              >
+                <div>
+                  <p className="font-semibold">{session.title || "Sesi tanpa judul"}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {session.region || "Region kosong"} · {session.candidates.length} kandidat · {session.ballotsCast} suara
+                  </p>
+                </div>
+                <Badge variant={session.status === "closed" ? "verified" : "outline"}>
+                  {session.status.toUpperCase()}
+                </Badge>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </main>

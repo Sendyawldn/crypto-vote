@@ -21,8 +21,11 @@ type VoteLedgerDocument = StoredVoteLedgerEntry & {
 }
 
 let cachedClient: MongoClient | null = null
+let mongoUnavailable = false
+let lastMongoFailureAt = 0
 const localStatePath = path.join(process.cwd(), ".data", "election-state.json")
 const localLedgerPath = path.join(process.cwd(), ".data", "vote-ledger.json")
+const mongoRetryDelayMs = 5_000
 
 type ElectionStateFile = {
   election: Election
@@ -319,54 +322,50 @@ async function appendVoteLedgerEntry(entry: StoredVoteLedgerEntry) {
 }
 
 async function getElectionCollection(): Promise<Collection<ElectionDocument> | null> {
-  const uri = process.env.MONGODB_URI
+  const database = await getMongoDatabase()
 
-  if (!uri) {
-    return null
-  }
-
-  if (!cachedClient) {
-    cachedClient = new MongoClient(uri)
-    await cachedClient.connect()
-  }
-
-  return cachedClient
-    .db(process.env.MONGODB_DB ?? "cryptovote")
-    .collection<ElectionDocument>("elections")
+  return database?.collection<ElectionDocument>("elections") ?? null
 }
 
 async function getElectionHistoryCollection(): Promise<Collection<ElectionDocument> | null> {
-  const uri = process.env.MONGODB_URI
+  const database = await getMongoDatabase()
 
-  if (!uri) {
-    return null
-  }
-
-  if (!cachedClient) {
-    cachedClient = new MongoClient(uri)
-    await cachedClient.connect()
-  }
-
-  return cachedClient
-    .db(process.env.MONGODB_DB ?? "cryptovote")
-    .collection<ElectionDocument>("election_history")
+  return database?.collection<ElectionDocument>("election_history") ?? null
 }
 
 async function getVoteLedgerCollection(): Promise<Collection<VoteLedgerDocument> | null> {
+  const database = await getMongoDatabase()
+
+  return database?.collection<VoteLedgerDocument>("vote_ledger") ?? null
+}
+
+async function getMongoDatabase() {
   const uri = process.env.MONGODB_URI
 
   if (!uri) {
     return null
   }
 
-  if (!cachedClient) {
-    cachedClient = new MongoClient(uri)
-    await cachedClient.connect()
+  if (mongoUnavailable && Date.now() - lastMongoFailureAt < mongoRetryDelayMs) {
+    return null
   }
 
-  return cachedClient
-    .db(process.env.MONGODB_DB ?? "cryptovote")
-    .collection<VoteLedgerDocument>("vote_ledger")
+  try {
+    if (!cachedClient) {
+      mongoUnavailable = false
+      cachedClient = new MongoClient(uri, {
+        serverSelectionTimeoutMS: 1200
+      })
+      await cachedClient.connect()
+    }
+
+    return cachedClient.db(process.env.MONGODB_DB ?? "cryptovote")
+  } catch {
+    cachedClient = null
+    mongoUnavailable = true
+    lastMongoFailureAt = Date.now()
+    return null
+  }
 }
 
 function stripMongoFields(document: ElectionDocument): Election {

@@ -2,7 +2,7 @@
 
 ## Current State
 
-CryptoVote starts from an empty typed seed state. Admins configure election identity and candidates before voting opens. The app can persist admin election state, session history, and encrypted vote ledger entries through the official MongoDB Node.js driver when `MONGODB_URI` is configured. If MongoDB is not configured, `/api/admin/election` and vote ledger writes fall back to local gitignored JSON files under `.data/` so the presentation demo still works offline and survives browser refreshes or route recompilation. MongoDB driver docs describe `insertOne()` for inserting documents and `find()` for retrieving documents with filters and cursor methods; sources fetched 2026-05-16: https://www.mongodb.com/docs/drivers/node/v6.15/usage-examples/insertOne/ and https://www.mongodb.com/docs/drivers/node/current/crud/query/retrieve/.
+CryptoVote starts from an empty typed seed state. Admins configure election identity and candidates before voting opens. The app can persist admin election state, session history, and encrypted vote ledger entries through the official MongoDB Node.js driver when `MONGODB_URI` is configured and reachable. If MongoDB is not configured or is offline during local development, `/api/admin/election` and vote ledger writes fall back to local gitignored JSON files under `.data/` so the presentation demo still works offline and survives browser refreshes or route recompilation. MongoDB driver docs describe `insertOne()` for inserting documents and `find()` for retrieving documents with filters and cursor methods; sources fetched 2026-05-16: https://www.mongodb.com/docs/drivers/node/v6.15/usage-examples/insertOne/ and https://www.mongodb.com/docs/drivers/node/current/crud/query/retrieve/.
 
 ## Current Collections
 

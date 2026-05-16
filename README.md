@@ -97,7 +97,7 @@ Optional MongoDB persistence:
 MONGODB_URI="mongodb://localhost:27017" MONGODB_DB="cryptovote"
 ```
 
-When `MONGODB_URI` is set, election state, history, and encrypted vote ledger entries are stored in MongoDB collections. When it is absent, the admin API uses gitignored local JSON files under `.data/` for demo persistence.
+When `MONGODB_URI` is set and MongoDB is reachable, election state, history, and encrypted vote ledger entries are stored in MongoDB collections. If MongoDB is absent or offline during local development, the API falls back to gitignored JSON files under `.data/` so the demo stays usable.
 
 ## Documentation
 

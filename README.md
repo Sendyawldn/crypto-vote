@@ -83,13 +83,13 @@ Both commands expose the app on `http://localhost:3000`.
 
 ## Configuration
 
-The current slice does not require secrets. Future production work must add environment-backed values for election keys, session signing, database credentials, and audit storage.
+Copy `.env.example` to `.env.local` for local secrets. Do not commit `.env.local`.
 
 The app starts with empty election data. The admin must open `/admin`, log in, fill the election identity, add candidates, add the DPT voter list, and start the election before users can vote. Clicking `Mulai Pemilihan` saves the active session so the public page can load its candidates. The public voting page asks for Email, ID, or NIM, then the voter must press `Cek DPT` before the ballot opens.
 
 When the election is closed, clicking `Simpan State` archives the completed session into history and resets the active form to an empty draft for the next election.
 
-The demo keeps a fixed private exponent so presentation runs are reproducible, while each vote encryption still uses a fresh random nonce. Production keys must be generated and guarded through a formal key ceremony, not source code.
+`ELECTION_PRIVATE_KEY` may contain a decimal BigInt private exponent. When it is empty, the app falls back to a demo key so local presentations still run. The browser fetches only the matching public key from `/api/election/public-key`; the private key stays server-side. Production keys must be generated and guarded through a formal key ceremony, not source code.
 
 Optional MongoDB persistence:
 
@@ -97,7 +97,7 @@ Optional MongoDB persistence:
 MONGODB_URI="mongodb://localhost:27017" MONGODB_DB="cryptovote"
 ```
 
-When `MONGODB_URI` is absent, the admin API uses `.data/election-state.json` for local demo persistence. The file is gitignored, so local sessions survive refreshes and dev-server route reloads without entering the repository.
+When `MONGODB_URI` is set, election state, history, and encrypted vote ledger entries are stored in MongoDB collections. When it is absent, the admin API uses gitignored local JSON files under `.data/` for demo persistence.
 
 ## Documentation
 

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import { getElectionState, recordElectionVote } from "@/lib/election-admin-store"
 import { getElectionResults } from "@/features/voting/tally"
+import {
+  parseVoteToken,
+  type EncryptedVoteChoice,
+  type VoteLedgerEntry
+} from "@/lib/elgamal-vote"
 
 export async function GET(
   _request: Request,
@@ -36,15 +41,30 @@ export async function POST(
   const body = (await request.json()) as {
     voterIdentifier?: string
     candidateId?: string
+    receipt?: Partial<VoteLedgerEntry>
   }
 
-  if (!body.voterIdentifier || !body.candidateId) {
+  if (!body.voterIdentifier || !body.candidateId || !body.receipt) {
     return NextResponse.json(
       {
         type: "https://cryptovote.local/problems/invalid-vote",
-        title: "Voter identifier and candidate id are required",
+        title: "Voter identifier, candidate id, and encrypted receipt are required",
         status: 400,
         code: "INVALID_VOTE_REQUEST"
+      },
+      { status: 400 }
+      )
+  }
+
+  const receiptValidation = validateReceipt(body.receipt)
+
+  if (!receiptValidation.valid) {
+    return NextResponse.json(
+      {
+        type: "https://cryptovote.local/problems/invalid-vote-receipt",
+        title: receiptValidation.message,
+        status: 400,
+        code: "INVALID_VOTE_RECEIPT"
       },
       { status: 400 }
     )
@@ -53,7 +73,8 @@ export async function POST(
   const result = await recordElectionVote({
     electionId,
     voterIdentifier: body.voterIdentifier,
-    candidateId: body.candidateId
+    candidateId: body.candidateId,
+    ledgerEntry: receiptValidation.ledgerEntry
   })
 
   if (!result.ok) {
@@ -70,6 +91,48 @@ export async function POST(
 
   return NextResponse.json({
     election: result.election,
-    persistence: result.persistence
+    persistence: result.persistence,
+    ledgerSize: result.ledgerSize
   })
+}
+
+function validateReceipt(receipt: Partial<VoteLedgerEntry>):
+  | { valid: true; ledgerEntry: VoteLedgerEntry }
+  | { valid: false; message: string } {
+  if (
+    !receipt.receiptHash ||
+    !receipt.token ||
+    !receipt.createdAt ||
+    !Array.isArray(receipt.encryptedChoices)
+  ) {
+    return { valid: false, message: "Encrypted receipt is incomplete" }
+  }
+
+  const payload = parseVoteToken(receipt.token)
+
+  if (!payload) {
+    return { valid: false, message: "Receipt token format is invalid" }
+  }
+
+  if (payload.receiptHash !== receipt.receiptHash || payload.createdAt !== receipt.createdAt) {
+    return { valid: false, message: "Receipt token metadata does not match the submitted receipt" }
+  }
+
+  if (!encryptedChoicesMatch(payload.choices, receipt.encryptedChoices)) {
+    return { valid: false, message: "Receipt token ciphertext does not match the submitted receipt" }
+  }
+
+  return {
+    valid: true,
+    ledgerEntry: {
+      receiptHash: receipt.receiptHash,
+      token: receipt.token,
+      createdAt: receipt.createdAt,
+      encryptedChoices: receipt.encryptedChoices
+    }
+  }
+}
+
+function encryptedChoicesMatch(left: EncryptedVoteChoice[], right: EncryptedVoteChoice[]) {
+  return JSON.stringify(left) === JSON.stringify(right)
 }

@@ -12,6 +12,8 @@ Voters need one clear action. Election operators need fast status reading. Audit
 
 The conceptual anchor is a tamper-evident ballot envelope under a counting-room lamp. The signature move is a seal-to-tally transition: selected ballots tighten into a compact encrypted receipt, then the result bars rebalance with a short measured motion.
 
+The receipt control is part of the custody metaphor: after sealing, the voter can copy the token or download a TXT receipt as their take-home proof.
+
 ## Color, Typography, Spacing, And Density Decisions
 
 Use off-white ballot surfaces, ink text, copper accents for cryptographic material, verification green for proven states, and red only for blocking risk. Typography uses strong display text for election identity, plain body copy for instructions, tabular numerals for counts, and compact metadata for audit records.
@@ -26,7 +28,7 @@ Mobile shows voting first, then receipt, then results. Tablet pairs voting and p
 
 ## Motion And Interaction Rules
 
-Use 160-280ms transitions with steady easing. Motion must communicate selection, sealing, tally update, and verification. Respect `prefers-reduced-motion` by removing transform motion and preserving color, text, and progress feedback.
+Use 160-280ms transitions with steady easing. Motion must communicate selection, sealing, tally update, verification, and admin aggregation progress. Respect `prefers-reduced-motion` by removing transform motion and preserving color, text, and progress feedback.
 
 ## Component Language And Morphology
 
@@ -46,5 +48,4 @@ Avoid generic admin dashboard chrome, decorative grid backgrounds, fake blockcha
 
 ## Implementation Notes For Future UI Tasks
 
-Keep chart labels readable on mobile. Preserve the vote-first order. Add richer audit and proof views only when the backend can provide real verification artifacts.
-
+Keep chart labels readable on mobile. Preserve the vote-first order. Admin aggregation logs should read like a custody checklist, not a terminal dump. Add richer audit and proof views only when the backend can provide real verification artifacts.

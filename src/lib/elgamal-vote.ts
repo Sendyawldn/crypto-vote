@@ -6,7 +6,8 @@ import {
   multiplyCiphertexts,
   serializeCiphertext,
   serializePublicKey,
-  type ElGamalCiphertext
+  type ElGamalCiphertext,
+  type ElGamalPublicKey
 } from "./elgamal"
 
 export type EncryptedVoteChoice = {
@@ -34,7 +35,7 @@ export type VoteLedgerEntry = {
   receiptHash: string
   token: string
   createdAt: string
-  candidateId: string
+  candidateId?: string
   voterName?: string
   encryptedChoices: EncryptedVoteChoice[]
 }
@@ -50,17 +51,20 @@ export type VoteVerificationResult =
       message: string
     }
 
-const DEMO_PRIVATE_KEY = generateKeyPair(undefined, 91236781236781236781236781236781n)
+const DEMO_PRIVATE_EXPONENT = "91236781236781236781236781236781"
+const ELECTION_PRIVATE_KEY = generateKeyPair(undefined, getElectionPrivateExponent())
 
-export const DEMO_PUBLIC_KEY = DEMO_PRIVATE_KEY.publicKey
+export const DEMO_PUBLIC_KEY = ELECTION_PRIVATE_KEY.publicKey
 
 export function createEncryptedVoteReceipt({
   candidateIds,
   selectedCandidateId,
+  publicKey = DEMO_PUBLIC_KEY,
   timestamp = new Date()
 }: {
   candidateIds: string[]
   selectedCandidateId: string
+  publicKey?: ElGamalPublicKey
   timestamp?: Date
 }): EncryptedVoteReceipt {
   if (!candidateIds.includes(selectedCandidateId)) {
@@ -71,14 +75,14 @@ export function createEncryptedVoteReceipt({
   const encryptedChoices = candidateIds.map((candidateId) => ({
     candidateId,
     ciphertext: serializeCiphertext(
-      encryptExponentVote(candidateId === selectedCandidateId ? 1 : 0, DEMO_PUBLIC_KEY)
+      encryptExponentVote(candidateId === selectedCandidateId ? 1 : 0, publicKey)
     )
   }))
   const receiptHash = createReceiptHash(createdAt, encryptedChoices)
   const payload: EncryptedVoteTokenPayload = {
     version: 1,
     createdAt,
-    publicKey: serializePublicKey(DEMO_PUBLIC_KEY),
+    publicKey: serializePublicKey(publicKey),
     choices: encryptedChoices,
     receiptHash
   }
@@ -166,7 +170,7 @@ export function decryptAggregatedVote(
   aggregate: ElGamalCiphertext,
   maximumVotes: number
 ) {
-  const encodedTotal = decrypt(aggregate, DEMO_PRIVATE_KEY)
+  const encodedTotal = decrypt(aggregate, ELECTION_PRIVATE_KEY)
   let cursor = 1n
 
   for (let voteCount = 0; voteCount <= maximumVotes; voteCount += 1) {
@@ -232,4 +236,28 @@ function encodeJson(value: unknown) {
 function decodeJson(value: string) {
   const padded = value.padEnd(value.length + ((4 - (value.length % 4)) % 4), "=")
   return JSON.parse(atob(padded.replaceAll("-", "+").replaceAll("_", "/")))
+}
+
+function getElectionPrivateExponent() {
+  const configuredExponent =
+    typeof process !== "undefined"
+      ? process.env.ELECTION_PRIVATE_KEY?.trim()
+      : undefined
+  const exponent = configuredExponent || DEMO_PRIVATE_EXPONENT
+
+  try {
+    const parsed = BigInt(exponent)
+
+    if (parsed <= 1n) {
+      throw new Error("Private key must be greater than 1")
+    }
+
+    return parsed
+  } catch {
+    if (configuredExponent) {
+      throw new Error("ELECTION_PRIVATE_KEY must be a decimal BigInt string")
+    }
+
+    return BigInt(DEMO_PRIVATE_EXPONENT)
+  }
 }

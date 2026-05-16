@@ -59,7 +59,7 @@ Returns public result data for one election.
 
 ## Mutation Safety
 
-Ballot submission is not exposed as an API route in this slice. A future ballot endpoint must require authentication, request validation, duplicate-submit protection, and a server-side idempotency key.
+Ballot submission requires a DPT identifier, candidate id, and encrypted receipt token. Duplicate-submit protection is currently enforced by the DPT `hasVoted` flag and receipt hash uniqueness in the ledger. Production should add authenticated voter sessions and a server-side idempotency key.
 
 ## `GET /api/admin/election`
 
@@ -118,7 +118,21 @@ Records one vote for an authorized DPT entry. The route rejects votes when the e
 ```json
 {
   "voterIdentifier": "A11.2024.00123",
-  "candidateId": "candidate-a"
+  "candidateId": "candidate-a",
+  "receipt": {
+    "receiptHash": "7c14bfc028fdbdd9",
+    "token": "EGV1...",
+    "createdAt": "2026-05-16T06:00:00.000Z",
+    "encryptedChoices": [
+      {
+        "candidateId": "candidate-a",
+        "ciphertext": {
+          "c1": "5f...",
+          "c2": "a1..."
+        }
+      }
+    ]
+  }
 }
 ```
 
@@ -130,7 +144,79 @@ Records one vote for an authorized DPT entry. The route rejects votes when the e
     "id": "campus-2026",
     "ballotsCast": 1
   },
-  "persistence": "local-file"
+  "persistence": "local-file",
+  "ledgerSize": 1
+}
+```
+
+### Response `409`
+
+```json
+{
+  "type": "https://cryptovote.local/problems/vote-rejected",
+  "title": "Voter has already voted",
+  "status": 409,
+  "code": "VOTE_REJECTED"
+}
+```
+
+## `POST /api/elections/{electionId}/verify`
+
+Checks a receipt token against the stored encrypted ledger without revealing the selected candidate.
+
+### Request
+
+```json
+{
+  "token": "EGV1..."
+}
+```
+
+### Response `200`
+
+```json
+{
+  "status": "verified",
+  "receiptHash": "7c14bfc028fdbdd9",
+  "message": "Token valid dan ciphertext-nya sudah masuk agregasi. Pilihan tetap tidak dibuka.",
+  "ledgerSize": 1
+}
+```
+
+## `GET /api/admin/tally`
+
+Runs homomorphic aggregation and decrypts the aggregate result. This endpoint requires the election to be closed.
+
+### Headers
+
+- `x-cryptovote-admin: true`
+
+### Response `200`
+
+```json
+{
+  "tally": {
+    "candidate-a": 12,
+    "candidate-b": 8
+  },
+  "ledgerSize": 20,
+  "logs": [
+    "Mengambil 20 suara terenkripsi dari ledger.",
+    "Mengalikan ciphertext per kandidat dengan operasi homomorphic.",
+    "Mendekripsi hasil agregat memakai private key di sisi server.",
+    "Selesai. Hasil akhir siap dibaca admin."
+  ]
+}
+```
+
+### Response `409`
+
+```json
+{
+  "type": "https://cryptovote.local/problems/election-open",
+  "title": "Election must be closed before aggregation",
+  "status": 409,
+  "code": "ELECTION_NOT_CLOSED"
 }
 ```
 
@@ -148,3 +234,18 @@ Records one vote for an authorized DPT entry. The route rejects votes when the e
 ## Next Validation Action
 
 Replace the demo admin header with real authenticated sessions and publish an OpenAPI 3.1 document when ballot mutation routes are introduced.
+## `GET /api/election/public-key`
+
+Returns the public El Gamal key used by the browser to encrypt vote vectors. The private exponent is never returned.
+
+### Response `200`
+
+```json
+{
+  "publicKey": {
+    "p": "7fffffffffffffffffffffffffffffff",
+    "g": "3",
+    "y": "38f7af1fac5e7c24d5a1ee8f8f014006"
+  }
+}
+```

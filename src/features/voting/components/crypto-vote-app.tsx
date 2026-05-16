@@ -17,6 +17,8 @@ import {
   BadgeCheck,
   Check,
   Clock,
+  Copy,
+  Download,
   KeyRound,
   LockKeyhole,
   ReceiptText,
@@ -35,11 +37,12 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import type { Election, VoteReceipt, Voter } from "../types"
+import type { VoteLedgerEntry } from "@/lib/elgamal-vote"
 import {
-  verifyVoteToken,
-  type VoteLedgerEntry
-} from "@/lib/elgamal-vote"
-import { DEMO_ELGAMAL_PARAMETERS } from "@/lib/elgamal"
+  DEMO_ELGAMAL_PARAMETERS,
+  deserializePublicKey,
+  type ElGamalPublicKey
+} from "@/lib/elgamal"
 import {
   createReceipt,
   getCandidatePercent,
@@ -51,14 +54,22 @@ type CryptoVoteAppProps = {
   election: Election
 }
 
+const FALLBACK_PUBLIC_KEY: ElGamalPublicKey = {
+  ...DEMO_ELGAMAL_PARAMETERS,
+  y: 75722817019112715260614520892165275654n
+}
+
 export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
   const [liveElection, setLiveElection] = useState(election)
+  const [electionPublicKey, setElectionPublicKey] = useState<ElGamalPublicKey>(FALLBACK_PUBLIC_KEY)
   const [selectedCandidateId, setSelectedCandidateId] = useState<string>("")
   const [voterIdentifier, setVoterIdentifier] = useState("")
   const [verifiedVoter, setVerifiedVoter] = useState<Voter | null>(null)
   const [voterCheckMessage, setVoterCheckMessage] = useState("Masukkan Email, ID, atau NIM lalu tekan Cek DPT.")
   const [receipt, setReceipt] = useState<VoteReceipt | null>(null)
   const [voteLedger, setVoteLedger] = useState<VoteLedgerEntry[]>([])
+  const [serverLedgerSize, setServerLedgerSize] = useState(0)
+  const [receiptActionMessage, setReceiptActionMessage] = useState("")
   const [verificationToken, setVerificationToken] = useState("")
   const [verificationMessage, setVerificationMessage] = useState(
     "Tempel token EGV1 dari receipt untuk mengecek status hitung."
@@ -72,7 +83,10 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
 
   useEffect(() => {
     async function loadElectionState() {
-      const response = await fetch("/api/admin/election", { cache: "no-store" })
+      const [response, publicKeyResponse] = await Promise.all([
+        fetch("/api/admin/election", { cache: "no-store" }),
+        fetch("/api/election/public-key", { cache: "no-store" })
+      ])
 
       if (!response.ok) {
         return
@@ -80,6 +94,11 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
 
       const body = (await response.json()) as { election: Election }
       setLiveElection(body.election)
+
+      if (publicKeyResponse.ok) {
+        const publicKeyBody = await publicKeyResponse.json()
+        setElectionPublicKey(deserializePublicKey(publicKeyBody.publicKey))
+      }
     }
 
     loadElectionState()
@@ -149,7 +168,9 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
 
     const nextReceipt = createReceipt(
       selectedCandidateId,
-      liveElection.candidates.map((candidate) => candidate.id)
+      liveElection.candidates.map((candidate) => candidate.id),
+      new Date(),
+      electionPublicKey
     )
     const response = await fetch(`/api/elections/${liveElection.id}/results`, {
       method: "POST",
@@ -158,7 +179,13 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
       },
       body: JSON.stringify({
         voterIdentifier: getPrimaryVoterIdentifier(verifiedVoter),
-        candidateId: selectedCandidateId
+        candidateId: selectedCandidateId,
+        receipt: {
+          receiptHash: nextReceipt.receiptHash,
+          token: nextReceipt.verificationToken,
+          createdAt: nextReceipt.createdAt,
+          encryptedChoices: nextReceipt.encryptedChoices
+        }
       })
     })
     const body = await response.json()
@@ -186,15 +213,65 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
       }
     ])
     setLiveElection(body.election)
+    setServerLedgerSize(body.ledgerSize ?? voteLedger.length + 1)
     setVerifiedVoter(null)
+    setReceiptActionMessage("Token siap disalin atau diunduh.")
     setVoterCheckMessage("Suara masuk. Ganti Email/ID/NIM lalu tekan Cek DPT untuk pemilih berikutnya.")
   }
 
-  function verifyToken() {
-    const result = verifyVoteToken(verificationToken.trim(), voteLedger)
+  async function verifyToken() {
+    const response = await fetch(`/api/elections/${liveElection.id}/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        token: verificationToken.trim()
+      })
+    })
+    const result = await response.json()
 
-    setVerificationStatus(result.status)
-    setVerificationMessage(result.message)
+    setVerificationStatus(result.status === "verified" ? "verified" : "invalid")
+    setVerificationMessage(result.message ?? result.title ?? "Token tidak valid.")
+
+    if (typeof result.ledgerSize === "number") {
+      setServerLedgerSize(result.ledgerSize)
+    }
+  }
+
+  async function copyReceiptToken() {
+    if (!receipt) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(receipt.verificationToken)
+      setReceiptActionMessage("Token disalin ke clipboard.")
+    } catch {
+      setReceiptActionMessage("Clipboard tidak tersedia. Salin token dari panel receipt.")
+    }
+  }
+
+  function downloadReceiptToken() {
+    if (!receipt) {
+      return
+    }
+
+    const content = [
+      "CryptoVote Receipt",
+      `Hash: ${receipt.receiptHash}`,
+      `Created At: ${receipt.createdAt}`,
+      "",
+      receipt.verificationToken
+    ].join("\n")
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `cryptovote-receipt-${receipt.receiptHash}.txt`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    setReceiptActionMessage("Receipt TXT diunduh.")
   }
 
   return (
@@ -224,7 +301,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
         <div className="mt-6 grid gap-3 border-t pt-5 md:grid-cols-4">
           <CustodyStep label="1. DPT" value={verifiedVoter ? "Pemilih valid" : "Cek pemilih"} />
           <CustodyStep label="2. Enkripsi" value={receipt ? "Receipt tersegel" : "Siap El Gamal"} />
-          <CustodyStep label="3. Ledger" value={`${voteLedger.length} token`} />
+          <CustodyStep label="3. Ledger" value={`${serverLedgerSize || voteLedger.length} token`} />
           <CustodyStep label="4. Tally" value={liveElection.status === "closed" ? "Final" : "Terkunci"} />
         </div>
       </header>
@@ -238,8 +315,9 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
             onChange={(event) => {
               setVoterIdentifier(event.target.value)
               setVerifiedVoter(null)
-              setReceipt(null)
-              setSelectedCandidateId("")
+                setReceipt(null)
+                setReceiptActionMessage("")
+                setSelectedCandidateId("")
               setVoterCheckMessage("Tekan Cek DPT untuk membuka surat suara.")
             }}
             placeholder="Masukkan Email, ID, atau NIM"
@@ -369,6 +447,21 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
                   </p>
                 )}
               </div>
+              {receipt ? (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <Button type="button" variant="secondary" onClick={copyReceiptToken}>
+                    <Copy className="size-4" aria-hidden="true" />
+                    Salin Token
+                  </Button>
+                  <Button type="button" variant="outline" onClick={downloadReceiptToken}>
+                    <Download className="size-4" aria-hidden="true" />
+                    Unduh TXT
+                  </Button>
+                  <p className="text-xs text-muted-foreground sm:col-span-2" aria-live="polite">
+                    {receiptActionMessage}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-5 space-y-3">
@@ -538,7 +631,7 @@ export function CryptoVoteApp({ election }: CryptoVoteAppProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
-            <ProofTile label="Ledger lokal" value={`${voteLedger.length}`} />
+            <ProofTile label="Ledger tersimpan" value={`${serverLedgerSize || voteLedger.length}`} />
             <ProofTile label="Modulus p" value={DEMO_ELGAMAL_PARAMETERS.p.toString()} />
             <ProofTile label="Generator g" value={DEMO_ELGAMAL_PARAMETERS.g.toString()} />
             <ProofTile label="Operasi tally" value="C1 x C2 mod p" />

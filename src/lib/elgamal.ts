@@ -173,6 +173,16 @@ export function serializePublicKey(
   }
 }
 
+export function deserializePublicKey(
+  publicKey: SerializedElGamalPublicKey
+): ElGamalPublicKey {
+  return {
+    p: BigInt(`0x${publicKey.p}`),
+    g: BigInt(`0x${publicKey.g}`),
+    y: BigInt(`0x${publicKey.y}`)
+  }
+}
+
 function normalizeMod(value: bigint, modulus: bigint) {
   return ((value % modulus) + modulus) % modulus
 }
@@ -200,4 +210,3 @@ function randomBigIntBetween(minInclusive: bigint, maxInclusive: bigint) {
 
   return minInclusive + candidate
 }
-

@@ -3,18 +3,34 @@ import path from "node:path"
 import { MongoClient, type Collection } from "mongodb"
 import { election as seedElection } from "@/features/voting/election-data"
 import type { Election } from "@/features/voting/types"
+import type { VoteLedgerEntry } from "@/lib/elgamal-vote"
 
 type ElectionDocument = Election & {
   _id: string
   updatedAt: string
 }
 
+export type StoredVoteLedgerEntry = VoteLedgerEntry & {
+  electionId: string
+  voterIdentifier: string
+  updatedAt: string
+}
+
+type VoteLedgerDocument = StoredVoteLedgerEntry & {
+  _id: string
+}
+
 let cachedClient: MongoClient | null = null
 const localStatePath = path.join(process.cwd(), ".data", "election-state.json")
+const localLedgerPath = path.join(process.cwd(), ".data", "vote-ledger.json")
 
 type ElectionStateFile = {
   election: Election
   history: Election[]
+}
+
+type VoteLedgerFile = {
+  entries: StoredVoteLedgerEntry[]
 }
 
 export async function getElectionState() {
@@ -106,6 +122,7 @@ export async function archiveElectionState(electionToArchive: Election) {
     ...electionToArchive,
     id: `${electionToArchive.id}-${Date.now()}`
   }
+  await archiveVoteLedgerEntries(electionToArchive.id, archivedElection.id)
 
   if (!collection || !historyCollection) {
     const fileState = await readLocalElectionState()
@@ -153,11 +170,13 @@ export async function archiveElectionState(electionToArchive: Election) {
 export async function recordElectionVote({
   electionId,
   voterIdentifier,
-  candidateId
+  candidateId,
+  ledgerEntry
 }: {
   electionId: string
   voterIdentifier: string
   candidateId: string
+  ledgerEntry: VoteLedgerEntry
 }) {
   const state = await getElectionState()
   const currentElection = state.election
@@ -191,7 +210,31 @@ export async function recordElectionVote({
     return { ok: false as const, message: "Candidate not found", status: 404 }
   }
 
+  const electionCandidateIds = currentElection.candidates
+    .map((candidate) => candidate.id)
+    .sort()
+  const receiptCandidateIds = ledgerEntry.encryptedChoices
+    .map((choice) => choice.candidateId)
+    .sort()
+
+  if (JSON.stringify(electionCandidateIds) !== JSON.stringify(receiptCandidateIds)) {
+    return { ok: false as const, message: "Receipt candidate vector does not match election", status: 400 }
+  }
+
   const votedAt = new Date().toISOString()
+  const storedLedgerEntry: StoredVoteLedgerEntry = {
+    ...ledgerEntry,
+    electionId: currentElection.id,
+    voterIdentifier: normalizedIdentifier,
+    updatedAt: votedAt
+  }
+
+  try {
+    await appendVoteLedgerEntry(storedLedgerEntry)
+  } catch {
+    return { ok: false as const, message: "Receipt is already recorded", status: 409 }
+  }
+
   const nextElection: Election = {
     ...currentElection,
     ballotsCast: currentElection.ballotsCast + 1,
@@ -211,8 +254,68 @@ export async function recordElectionVote({
   return {
     ok: true as const,
     election: saved.election,
-    persistence: saved.persistence
+    persistence: saved.persistence,
+    ledgerSize: await countVoteLedgerEntries(saved.election.id)
   }
+}
+
+export async function listVoteLedgerEntries(electionId: string): Promise<VoteLedgerEntry[]> {
+  const collection = await getVoteLedgerCollection()
+
+  if (!collection) {
+    const fileState = await readLocalVoteLedger()
+
+    return fileState.entries
+      .filter((entry) => entry.electionId === electionId)
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+      .map(stripLedgerMetadata)
+  }
+
+  const entries = await collection
+    .find({ electionId })
+    .sort({ createdAt: 1 })
+    .toArray()
+
+  return entries.map(stripVoteLedgerFields)
+}
+
+export async function countVoteLedgerEntries(electionId: string) {
+  const collection = await getVoteLedgerCollection()
+
+  if (!collection) {
+    const fileState = await readLocalVoteLedger()
+
+    return fileState.entries.filter((entry) => entry.electionId === electionId).length
+  }
+
+  return collection.countDocuments({ electionId })
+}
+
+async function appendVoteLedgerEntry(entry: StoredVoteLedgerEntry) {
+  const collection = await getVoteLedgerCollection()
+
+  if (!collection) {
+    const fileState = await readLocalVoteLedger()
+    const alreadyExists = fileState.entries.some(
+      (ledgerEntry) =>
+        ledgerEntry.electionId === entry.electionId &&
+        ledgerEntry.receiptHash === entry.receiptHash
+    )
+
+    if (alreadyExists) {
+      throw new Error("Duplicate receipt")
+    }
+
+    await writeLocalVoteLedger({
+      entries: [...fileState.entries, entry]
+    })
+    return
+  }
+
+  await collection.insertOne({
+    ...entry,
+    _id: createLedgerDocumentId(entry.electionId, entry.receiptHash)
+  })
 }
 
 async function getElectionCollection(): Promise<Collection<ElectionDocument> | null> {
@@ -249,12 +352,44 @@ async function getElectionHistoryCollection(): Promise<Collection<ElectionDocume
     .collection<ElectionDocument>("election_history")
 }
 
+async function getVoteLedgerCollection(): Promise<Collection<VoteLedgerDocument> | null> {
+  const uri = process.env.MONGODB_URI
+
+  if (!uri) {
+    return null
+  }
+
+  if (!cachedClient) {
+    cachedClient = new MongoClient(uri)
+    await cachedClient.connect()
+  }
+
+  return cachedClient
+    .db(process.env.MONGODB_DB ?? "cryptovote")
+    .collection<VoteLedgerDocument>("vote_ledger")
+}
+
 function stripMongoFields(document: ElectionDocument): Election {
   const election = { ...document }
   delete (election as Partial<ElectionDocument>)._id
   delete (election as Partial<ElectionDocument>).updatedAt
 
   return election
+}
+
+function stripVoteLedgerFields(document: VoteLedgerDocument): VoteLedgerEntry {
+  return stripLedgerMetadata(document)
+}
+
+function stripLedgerMetadata(entry: StoredVoteLedgerEntry): VoteLedgerEntry {
+  return {
+    receiptHash: entry.receiptHash,
+    token: entry.token,
+    createdAt: entry.createdAt,
+    candidateId: entry.candidateId,
+    voterName: entry.voterName,
+    encryptedChoices: entry.encryptedChoices
+  }
 }
 
 async function readLocalElectionState(): Promise<ElectionStateFile> {
@@ -280,6 +415,58 @@ async function readLocalElectionState(): Promise<ElectionStateFile> {
 async function writeLocalElectionState(state: ElectionStateFile) {
   await mkdir(path.dirname(localStatePath), { recursive: true })
   await writeFile(localStatePath, `${JSON.stringify(state, null, 2)}\n`, "utf8")
+}
+
+async function readLocalVoteLedger(): Promise<VoteLedgerFile> {
+  try {
+    const content = await readFile(localLedgerPath, "utf8")
+    const state = JSON.parse(content) as Partial<VoteLedgerFile>
+
+    return {
+      entries: state.entries ?? []
+    }
+  } catch {
+    const initialState = { entries: [] }
+    await writeLocalVoteLedger(initialState)
+
+    return initialState
+  }
+}
+
+async function writeLocalVoteLedger(state: VoteLedgerFile) {
+  await mkdir(path.dirname(localLedgerPath), { recursive: true })
+  await writeFile(localLedgerPath, `${JSON.stringify(state, null, 2)}\n`, "utf8")
+}
+
+async function archiveVoteLedgerEntries(electionId: string, archivedElectionId: string) {
+  const collection = await getVoteLedgerCollection()
+
+  if (!collection) {
+    const fileState = await readLocalVoteLedger()
+
+    await writeLocalVoteLedger({
+      entries: fileState.entries.map((entry) =>
+        entry.electionId === electionId
+          ? { ...entry, electionId: archivedElectionId, updatedAt: new Date().toISOString() }
+          : entry
+      )
+    })
+    return
+  }
+
+  await collection.updateMany(
+    { electionId },
+    {
+      $set: {
+        electionId: archivedElectionId,
+        updatedAt: new Date().toISOString()
+      }
+    }
+  )
+}
+
+function createLedgerDocumentId(electionId: string, receiptHash: string) {
+  return `${electionId}:${receiptHash}`
 }
 
 function cloneElection(election: Election): Election {

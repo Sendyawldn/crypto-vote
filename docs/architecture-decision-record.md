@@ -22,7 +22,7 @@ Next.js 15 matches the user constraint and gives one deployable for pages, route
 
 The current app treats voter input as untrusted at the UI and API boundary, but it does not yet enforce production authentication or durable authorization. El Gamal math is implemented with native JavaScript BigInt for demo encryption and homomorphic aggregation. Production work must move key custody, tally proof generation, parameter review, and audit trails to reviewed server-side services or maintained cryptographic libraries.
 
-The demo private exponent is fixed to make the local demo reproducible. It must not be copied into production. Production key material must come from a documented key ceremony with safe custody, access control, and audit records.
+The server reads `ELECTION_PRIVATE_KEY` when it is configured and falls back to a fixed demo exponent only for local presentations. The browser fetches the matching public key from an API route and never receives the private exponent. Production key material must come from a documented key ceremony with safe custody, access control, and audit records.
 
 ## Realtime Decision
 
@@ -30,7 +30,7 @@ Use client-side timed refresh for the first live result experience. It is enough
 
 ## Data Decision
 
-Use an empty typed seed plus a gitignored local JSON fallback for this slice. Do not require a database for classroom demo runs, but keep the MongoDB adapter available for longer-lived persistence once voter identity, election lifecycle, ballot retention, audit log, and cryptographic proof requirements are finalized.
+Use MongoDB for election state, history, and encrypted ledger entries when `MONGODB_URI` is configured. Keep gitignored local JSON fallback files for classroom demo runs without a database. The ledger and election update are not yet wrapped in a transaction, so production must add transaction support or a recovery process before certification.
 
 ## Docker Decision
 

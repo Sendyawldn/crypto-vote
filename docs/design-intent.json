@@ -12,8 +12,10 @@
     "anchor": "tamper-evident ballot envelope under a counting-room lamp",
     "distinctiveMoves": [
       "sealed receipt panel for encrypted ballot state",
+      "copy and TXT receipt controls after vote sealing",
       "copper cryptographic accents separated from green verification state",
-      "desktop three-surface count room layout"
+      "desktop three-surface count room layout",
+      "admin aggregation log that narrates encrypted ledger handling"
     ],
     "copiedReferenceAllowed": false
   },
@@ -48,7 +50,7 @@
     "sourceDomain": "civic counting room and physical ballot custody",
     "specificReferencePoint": "sealed ballot envelope, ledger ink, lamp-lit count table",
     "rationale": "Voting needs trust, custody, and count clarity more than generic dashboard energy.",
-    "signatureMotion": "selection compresses into sealed receipt; tally bars rebalance after submission",
+    "signatureMotion": "selection compresses into sealed receipt; tally bars rebalance after submission; admin tally advances through ledger-read, multiply, decrypt, complete log states",
     "typographicDecision": "display for election identity, plain text for voter instruction, tabular numerals for counts",
     "visualRiskBudget": "distinctive but calm",
     "motionRiskBudget": "short state transitions with reduced-motion fallback",
@@ -69,14 +71,15 @@
   "motionPaletteDecision": {
     "productCategorySignal": "secure civic workflow",
     "paletteDecision": "off-white ballot, ink, copper cryptographic accent, green verification, red blocking risk",
-    "motionDecision": "medium-low density with explicit seal, submit, and tally update states",
+    "motionDecision": "medium-low density with explicit seal, submit, receipt custody, aggregation, and tally update states",
     "spatialDecision": "2D responsive app; no 3D because the workflow needs clarity and fast form completion"
   },
   "aiSafeUiAudit": {
     "status": "completed",
     "requiredProductSpecificSignals": [
-      "encrypted receipt treatment",
+      "encrypted receipt treatment with copy/download proof controls",
       "homomorphic tally status",
+      "admin aggregation process log",
       "ballot-first responsive priority"
     ],
     "forbiddenDrift": [
@@ -168,13 +171,15 @@
   "designExecutionHandoff": {
     "primarySurface": "voter workspace",
     "secondarySurface": "encrypted receipt",
-    "tertiarySurface": "live result chart"
+    "tertiarySurface": "live result chart and closed-election aggregation log"
   },
   "reviewRubric": [
     "Does the UI make ballot custody clear?",
     "Can a voter complete the main action on mobile?",
     "Are proof and security claims honest?",
-    "Does the chart remain readable across widths?"
+    "Does the chart remain readable across widths?",
+    "Do receipt copy/download controls preserve token readability and accessible status feedback?",
+    "Does admin decryption stay unavailable until the election is closed?"
   ],
   "contextHygiene": {
     "validSources": [
@@ -204,7 +209,7 @@
   ],
   "implementation": {
     "stack": "Next.js 15, Tailwind CSS v4, local shadcn/ui components, Recharts",
-    "state": "client state for first slice"
+    "state": "server-backed election state and encrypted ledger with local-file fallback"
   },
   "repoEvidence": {
     "freshProject": true,

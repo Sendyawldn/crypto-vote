@@ -1,5 +1,6 @@
 import type { Election, VoteReceipt } from "./types"
 import { createEncryptedVoteReceipt } from "@/lib/elgamal-vote"
+import type { ElGamalPublicKey } from "@/lib/elgamal"
 
 export function getTurnoutPercentage(ballotsCast: number, totalVoters: number) {
   if (totalVoters <= 0) {
@@ -40,11 +41,13 @@ export function getElectionResults(election: Election) {
 export function createReceipt(
   candidateId: string,
   candidateIds: string[],
-  timestamp = new Date()
+  timestamp = new Date(),
+  publicKey?: ElGamalPublicKey
 ): VoteReceipt {
   const encryptedReceipt = createEncryptedVoteReceipt({
     candidateIds,
     selectedCandidateId: candidateId,
+    publicKey,
     timestamp
   })
 

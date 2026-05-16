@@ -11,13 +11,13 @@ The product context names El Gamal homomorphic encryption as the core security i
 1. Let a voter review candidates and submit one encrypted ballot.
 2. Show a live result panel with totals, turnout, and charted candidate support.
 3. Expose a small documented API surface for health and election results.
-4. Keep the architecture ready for real authentication, persistence, key custody, and cryptographic verification.
+4. Keep the architecture ready for real authentication, persistent encrypted ledger storage, key custody, and cryptographic verification.
 
 ## Non-Goals For This Slice
 
-This slice does not provide production voter identity proofing, certified key ceremonies, permanent ballot storage, or audited cryptographic deployment. The El Gamal math is implemented for demonstration and education, while production use still needs reviewed parameters, key custody, protocols, and server-side trust boundaries.
+This slice does not provide production voter identity proofing, certified key ceremonies, audited cryptographic deployment, or transactional ballot recovery. The El Gamal math is implemented for demonstration and education, while production use still needs reviewed parameters, key custody, protocols, and server-side trust boundaries.
 
-The demo uses a fixed private exponent for repeatable local presentation. Vote encryption still uses random nonces. A production election must generate private keys through a formal key ceremony, split or guard the private key, and keep it out of source code.
+The app reads `ELECTION_PRIVATE_KEY` from the environment and falls back to a fixed demo exponent only for repeatable local presentation. Vote encryption still uses random nonces. A production election must generate private keys through a formal key ceremony, split or guard the private key, and keep it out of source code.
 
 ## Runtime Evidence
 

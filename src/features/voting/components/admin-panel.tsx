@@ -22,11 +22,6 @@ import {
   CardTitle
 } from "@/components/ui/card"
 import type { Candidate, Election, ElectionStatus } from "../types"
-import {
-  aggregateEncryptedChoices,
-  decryptAggregatedVote,
-  type VoteLedgerEntry
-} from "@/lib/elgamal-vote"
 
 type AdminPanelProps = {
   election: Election
@@ -42,7 +37,6 @@ export function AdminPanel({ election }: AdminPanelProps) {
   const [loginMessage, setLoginMessage] = useState("Login admin diperlukan untuk membuka kontrol penuh.")
   const [managedElection, setManagedElection] = useState(election)
   const [history, setHistory] = useState<Election[]>([])
-  const [voteLedger] = useState<VoteLedgerEntry[]>([])
   const [candidateDraft, setCandidateDraft] = useState({
     name: "",
     party: "",
@@ -51,6 +45,8 @@ export function AdminPanel({ election }: AdminPanelProps) {
   const [voterIdentifierDraft, setVoterIdentifierDraft] = useState("")
   const [adminMessage, setAdminMessage] = useState("Admin memiliki full access atas konfigurasi demo.")
   const [finalTally, setFinalTally] = useState<Record<string, number> | null>(null)
+  const [aggregationLogs, setAggregationLogs] = useState<string[]>([])
+  const [isDecrypting, setIsDecrypting] = useState(false)
 
   const votedNames = useMemo(
     () =>
@@ -114,10 +110,6 @@ export function AdminPanel({ election }: AdminPanelProps) {
           ? "Pemilihan selesai. Admin dapat mendekripsi hasil akhir."
           : "Pemilihan dikembalikan ke draft untuk pengaturan."
     )
-
-    if (status === "closed") {
-      decryptFinalTally()
-    }
 
     await persistElectionState(nextElection)
   }
@@ -252,20 +244,37 @@ export function AdminPanel({ election }: AdminPanelProps) {
     setAdminMessage(`Sesi tersimpan ke riwayat ${body.persistence}. Form dikosongkan untuk sesi baru.`)
   }
 
-  function decryptFinalTally() {
-    const aggregates = aggregateEncryptedChoices(voteLedger)
-    const decrypted = Object.fromEntries(
-      managedElection.candidates.map((candidate) => {
-        const aggregate = aggregates.get(candidate.id)
+  async function decryptFinalTally() {
+    if (managedElection.status !== "closed") {
+      setAdminMessage("Tutup pemilihan sebelum menjalankan agregasi dan dekripsi.")
+      return
+    }
 
-        return [
-          candidate.id,
-          aggregate ? decryptAggregatedVote(aggregate, voteLedger.length) : candidate.votes
-        ]
-      })
-    )
+    setIsDecrypting(true)
+    setAggregationLogs([
+      "Menghubungi ledger terenkripsi...",
+      "Menyiapkan operasi homomorphic..."
+    ])
 
-    setFinalTally(decrypted)
+    const response = await fetch("/api/admin/tally", {
+      headers: {
+        "x-cryptovote-admin": "true"
+      },
+      cache: "no-store"
+    })
+    const body = await response.json()
+
+    if (!response.ok) {
+      setAdminMessage(body.title ?? "Gagal menjalankan dekripsi tally.")
+      setAggregationLogs([])
+      setIsDecrypting(false)
+      return
+    }
+
+    setFinalTally(body.tally)
+    setAggregationLogs(body.logs ?? [])
+    setAdminMessage(`Agregasi selesai dari ${body.ledgerSize} receipt terenkripsi.`)
+    setIsDecrypting(false)
   }
 
   if (!isLoggedIn) {
@@ -345,7 +354,7 @@ export function AdminPanel({ election }: AdminPanelProps) {
               disabled={!hasVotingSession || managedElection.status !== "open"}
             >
               <Square className="size-4" aria-hidden="true" />
-              Selesaikan Pemilihan
+              Tutup Pemilihan
             </Button>
             <Button type="button" onClick={syncAdminState} disabled={managedElection.status !== "closed"}>
               <UserCheck className="size-4" aria-hidden="true" />
@@ -535,11 +544,25 @@ export function AdminPanel({ election }: AdminPanelProps) {
           <Button
             type="button"
             onClick={decryptFinalTally}
-            disabled={managedElection.status !== "closed"}
+            disabled={managedElection.status !== "closed" || isDecrypting}
           >
             <KeyRound className="size-4" aria-hidden="true" />
-            Dekripsi Tally Agregat
+            {isDecrypting ? "Memproses Tally..." : "Dekripsi Tally Agregat"}
           </Button>
+          <div className="rounded-md border bg-background p-3" aria-live="polite">
+            <p className="text-sm font-semibold">Log Agregasi</p>
+            <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+              {aggregationLogs.length > 0 ? (
+                aggregationLogs.map((log) => (
+                  <p key={log} className="font-mono">
+                    {log}
+                  </p>
+                ))
+              ) : (
+                <p>Log akan muncul setelah pemilihan ditutup dan admin menjalankan dekripsi.</p>
+              )}
+            </div>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {managedElection.candidates.map((candidate) => (
               <ProofTile

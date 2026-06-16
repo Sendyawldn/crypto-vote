@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "CryptoVote",
+  title: "Evoting",
   description: "Secure e-voting workspace with homomorphic tally visibility."
 }
 
